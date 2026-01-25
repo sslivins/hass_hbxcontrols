@@ -17,6 +17,7 @@ from homeassistant.const import (
     UnitOfPower,
     UnitOfPressure,
     UnitOfTemperature,
+    UnitOfTime,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -30,15 +31,8 @@ _LOGGER = logging.getLogger(__name__)
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     # Temperature sensors - these will be dynamically created based on available temperature sensors
     SensorEntityDescription(
-        key="temperature_hot_tank",
-        name="Hot Tank Temperature",
-        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-    ),
-    SensorEntityDescription(
-        key="temperature_cold_tank", 
-        name="Cold Tank Temperature",
+        key="temperature_tank",
+        name="Tank Temperature",
         native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -51,29 +45,8 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(
-        key="target_temperature_hot_tank",
-        name="Hot Tank Target Temperature",
-        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-    ),
-    SensorEntityDescription(
-        key="target_temperature_cold_tank",
-        name="Cold Tank Target Temperature", 
-        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-    ),
-    SensorEntityDescription(
-        key="hot_tank_min_temp",
-        name="Hot Tank Minimum Temperature",
-        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-    ),
-    SensorEntityDescription(
-        key="hot_tank_max_temp", 
-        name="Hot Tank Maximum Temperature",
+        key="target_temperature_tank",
+        name="Tank Target Temperature",
         native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -88,6 +61,20 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="cold_tank_max_temp",
         name="Cold Tank Maximum Temperature", 
+        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="warm_weather_shutdown",
+        name="Warm Weather Shutdown Temperature",
+        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="cold_weather_shutdown",
+        name="Cold Weather Shutdown Temperature",
         native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -140,6 +127,41 @@ async def async_setup_entry(
                     )
                 else:
                     _LOGGER.debug("Device %s does not have parameter %s", device_id, description.key)
+            
+            # Create heat pump stage sensors
+            heatpump_stages = device_parameters.get("heatpump_stages", [])
+            for stage in heatpump_stages:
+                stage_title = stage.get("title", "Stage")
+                
+                _LOGGER.debug("Creating heat pump stage runtime sensor for device %s stage %s", 
+                             device_id, stage_title)
+                
+                # Runtime sensor
+                entities.append(
+                    HeatPumpStageRuntimeSensor(
+                        coordinator,
+                        device_id,
+                        device,
+                        stage_title,
+                    )
+                )
+            
+            # Create backup heater sensors
+            backup_state = device_parameters.get("backup_state")
+            if backup_state:
+                backup_title = backup_state.get("title", "Backup")
+                
+                _LOGGER.debug("Creating backup runtime sensor for device %s", device_id)
+                
+                # Runtime sensor
+                entities.append(
+                    BackupRuntimeSensor(
+                        coordinator,
+                        device_id,
+                        device,
+                        backup_title,
+                    )
+                )
     else:
         _LOGGER.debug("No coordinator data or devices found")
     
@@ -197,3 +219,144 @@ class SensorLinxSensor(CoordinatorEntity, SensorEntity):
             and "devices" in self.coordinator.data
             and self._device_id in self.coordinator.data["devices"]
         )
+
+
+class HeatPumpStageRuntimeSensor(CoordinatorEntity, SensorEntity):
+    """Implementation of a Heat Pump Stage Runtime sensor."""
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        stage_title: str,
+    ) -> None:
+        """Initialize the heat pump stage runtime sensor."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._stage_title = stage_title
+        
+        # Create a safe key from title for unique_id
+        safe_title = stage_title.lower().replace(" ", "_")
+        
+        self._attr_unique_id = f"{device_id}_hp_{safe_title}_runtime"
+        self._attr_name = f"{device.get('name', device_id)} HP {stage_title} Runtime"
+        self._attr_icon = "mdi:timer-outline"
+        
+        # Device info
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("type", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the runtime of the heat pump stage."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+            
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+            
+        parameters = device.get("parameters", {})
+        heatpump_stages = parameters.get("heatpump_stages", [])
+        
+        # Find the stage by title
+        for stage in heatpump_stages:
+            if stage.get("title") == self._stage_title:
+                return stage.get("runTime")
+        
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        if not (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        ):
+            return False
+        
+        # Check if the stage still exists
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return False
+            
+        parameters = device.get("parameters", {})
+        heatpump_stages = parameters.get("heatpump_stages", [])
+        
+        return any(stage.get("title") == self._stage_title for stage in heatpump_stages)
+
+
+class BackupRuntimeSensor(CoordinatorEntity, SensorEntity):
+    """Implementation of a Backup Heater Runtime sensor."""
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        backup_title: str,
+    ) -> None:
+        """Initialize the backup heater runtime sensor."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._backup_title = backup_title
+        
+        self._attr_unique_id = f"{device_id}_backup_runtime"
+        self._attr_name = f"{device.get('name', device_id)} {backup_title} Runtime"
+        self._attr_icon = "mdi:timer-outline"
+        
+        # Device info
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("type", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the runtime of the backup heater."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+            
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+            
+        parameters = device.get("parameters", {})
+        backup_state = parameters.get("backup_state")
+        
+        if not backup_state:
+            return None
+        
+        return backup_state.get("runTime")
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        if not (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        ):
+            return False
+        
+        # Check if backup state exists
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return False
+            
+        parameters = device.get("parameters", {})
+        return parameters.get("backup_state") is not None
