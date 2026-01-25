@@ -8,6 +8,7 @@ from pysensorlinx.sensorlinx import SensorlinxDevice, Temperature
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -111,6 +112,7 @@ class HotTankOutdoorResetSwitch(CoordinatorEntity, SwitchEntity):
     """Switch to enable/disable Hot Tank Outdoor Reset."""
 
     _attr_icon = "mdi:sun-thermometer"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(
         self,
@@ -327,6 +329,7 @@ class ColdTankOutdoorResetSwitch(CoordinatorEntity, SwitchEntity):
     """Switch to enable/disable Cold Tank Outdoor Reset."""
 
     _attr_icon = "mdi:snowflake-thermometer"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(
         self,
@@ -401,6 +404,7 @@ class WarmWeatherShutdownSwitch(CoordinatorEntity, SwitchEntity):
     """Switch to enable/disable Warm Weather Shutdown."""
 
     _attr_icon = "mdi:weather-sunny-alert"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(
         self,
@@ -475,6 +479,7 @@ class ColdWeatherShutdownSwitch(CoordinatorEntity, SwitchEntity):
     """Switch to enable/disable Cold Weather Shutdown."""
 
     _attr_icon = "mdi:weather-snowy-heavy"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(
         self,

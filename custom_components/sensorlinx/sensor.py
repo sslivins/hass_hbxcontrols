@@ -12,6 +12,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
+    EntityCategory,
     PERCENTAGE,
     UnitOfEnergy,
     UnitOfPower,
@@ -48,11 +49,13 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         key="firmware_version",
         name="Firmware Version",
         device_class=SensorDeviceClass.ENUM,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="device_type",
         name="Device Type",
         device_class=SensorDeviceClass.ENUM,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
 )
 
@@ -208,6 +211,7 @@ class HeatPumpStageRuntimeSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{device_id}_hp_{safe_title}_runtime"
         self._attr_name = f"{device.get('name', device_id)} HP {stage_title} Runtime"
         self._attr_icon = "mdi:timer-outline"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         
         # Device info
         self._attr_device_info = {
@@ -278,6 +282,8 @@ class BackupRuntimeSensor(CoordinatorEntity, SensorEntity):
         
         self._attr_unique_id = f"{device_id}_backup_runtime"
         self._attr_name = f"{device.get('name', device_id)} {backup_title} Runtime"
+        self._attr_icon = "mdi:timer-outline"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_icon = "mdi:timer-outline"
         
         # Device info

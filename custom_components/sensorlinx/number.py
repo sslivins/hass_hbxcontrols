@@ -12,7 +12,7 @@ from homeassistant.components.number import (
     NumberMode,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTemperature
+from homeassistant.const import EntityCategory, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -164,7 +164,7 @@ class HotTankTargetTemperature(CoordinatorEntity, NumberEntity):
     _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
-    _attr_mode = NumberMode.BOX
+    _attr_mode = NumberMode.AUTO
     _attr_icon = "mdi:thermometer"
 
     def __init__(
@@ -248,6 +248,7 @@ class HotTankMinTemperature(CoordinatorEntity, NumberEntity):
     _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:thermometer-low"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(
         self,
@@ -328,6 +329,7 @@ class HotTankMaxTemperature(CoordinatorEntity, NumberEntity):
     _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:thermometer-high"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(
         self,
@@ -408,6 +410,7 @@ class HotTankOutdoorReset(CoordinatorEntity, NumberEntity):
     _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:sun-thermometer"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(
         self,
@@ -488,7 +491,7 @@ class ColdTankTargetTemperature(CoordinatorEntity, NumberEntity):
     _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
-    _attr_mode = NumberMode.BOX
+    _attr_mode = NumberMode.AUTO
     _attr_icon = "mdi:thermometer"
 
     def __init__(
@@ -572,6 +575,7 @@ class ColdTankMinTemperature(CoordinatorEntity, NumberEntity):
     _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:thermometer-low"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(
         self,
@@ -652,6 +656,7 @@ class ColdTankMaxTemperature(CoordinatorEntity, NumberEntity):
     _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:thermometer-high"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(
         self,
@@ -732,6 +737,7 @@ class ColdTankOutdoorReset(CoordinatorEntity, NumberEntity):
     _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:snowflake-thermometer"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(
         self,
@@ -812,8 +818,9 @@ class WarmWeatherShutdown(CoordinatorEntity, NumberEntity):
     _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
-    _attr_mode = NumberMode.BOX
+    _attr_mode = NumberMode.AUTO
     _attr_icon = "mdi:weather-sunny-alert"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(
         self,
@@ -894,8 +901,9 @@ class ColdWeatherShutdown(CoordinatorEntity, NumberEntity):
     _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
-    _attr_mode = NumberMode.BOX
+    _attr_mode = NumberMode.AUTO
     _attr_icon = "mdi:weather-snowy-heavy"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(
         self,
