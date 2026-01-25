@@ -6,7 +6,11 @@
         "description": "Set up your SensorLinx integration",
         "data": {
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "scan_interval": "Update interval (seconds)"
+        },
+        "data_description": {
+          "scan_interval": "How often to poll for updates (60-3600 seconds, default 300)"
         }
       }
     },

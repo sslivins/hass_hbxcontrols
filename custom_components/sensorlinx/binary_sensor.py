@@ -78,19 +78,6 @@ async def async_setup_entry(
                         "Running",
                     )
                 )
-                
-                # Enabled sensor
-                entities.append(
-                    HeatPumpStageBinarySensor(
-                        coordinator,
-                        device_id,
-                        device,
-                        stage_title,
-                        "enabled",
-                        "enabled",
-                        "Enabled",
-                    )
-                )
             
             # Create backup heater binary sensors
             backup_state = device_parameters.get("backup_state")
@@ -109,19 +96,6 @@ async def async_setup_entry(
                         "running",
                         "activated",
                         "Running",
-                    )
-                )
-                
-                # Enabled sensor
-                entities.append(
-                    BackupBinarySensor(
-                        coordinator,
-                        device_id,
-                        device,
-                        backup_title,
-                        "enabled",
-                        "enabled",
-                        "Enabled",
                     )
                 )
     else:
