@@ -135,6 +135,11 @@ class SensorLinxDataUpdateCoordinator(DataUpdateCoordinator):
                   except:
                     pass
                   
+                  try:
+                    parameters["cold_tank_outdoor_reset"] = await device_helper.get_cold_tank_outdoor_reset(device_info=device)
+                  except:
+                    pass
+                  
                   # Device info
                   try:
                     parameters["firmware_version"] = await device_helper.get_firmware_version(device_info=device)

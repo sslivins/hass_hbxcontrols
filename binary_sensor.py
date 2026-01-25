@@ -19,18 +19,7 @@ from .coordinator import SensorLinxDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-BINARY_SENSOR_DESCRIPTIONS: tuple[BinarySensorEntityDescription, ...] = (
-    BinarySensorEntityDescription(
-        key="permanent_heat_demand",
-        name="Permanent Heat Demand",
-        device_class=BinarySensorDeviceClass.HEAT,
-    ),
-    BinarySensorEntityDescription(
-        key="permanent_cool_demand", 
-        name="Permanent Cool Demand",
-        device_class=BinarySensorDeviceClass.COLD,
-    ),
-)
+BINARY_SENSOR_DESCRIPTIONS: tuple[BinarySensorEntityDescription, ...] = ()
 
 
 async def async_setup_entry(
@@ -185,11 +174,6 @@ class SensorLinxBinarySensor(CoordinatorEntity, BinarySensorEntity):
         
         if value is None:
             return None
-        
-        # Handle different parameter types
-        if self.entity_description.key in ["permanent_heat_demand", "permanent_cool_demand"]:
-            # These are boolean values from the API
-            return bool(value)
         
         # Default handling
         if isinstance(value, bool):
