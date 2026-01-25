@@ -119,6 +119,11 @@ class SensorLinxDataUpdateCoordinator(DataUpdateCoordinator):
                     parameters["hot_tank_max_temp"] = await device_helper.get_hot_tank_max_temp(device_info=device)
                   except:
                     pass
+                  
+                  try:
+                    parameters["hot_tank_outdoor_reset"] = await device_helper.get_hot_tank_outdoor_reset(device_info=device)
+                  except:
+                    pass
                     
                   try:
                     parameters["cold_tank_min_temp"] = await device_helper.get_cold_tank_min_temp(device_info=device)
@@ -127,6 +132,11 @@ class SensorLinxDataUpdateCoordinator(DataUpdateCoordinator):
                     
                   try:
                     parameters["cold_tank_max_temp"] = await device_helper.get_cold_tank_max_temp(device_info=device)
+                  except:
+                    pass
+                  
+                  try:
+                    parameters["cold_tank_outdoor_reset"] = await device_helper.get_cold_tank_outdoor_reset(device_info=device)
                   except:
                     pass
                   
@@ -152,10 +162,29 @@ class SensorLinxDataUpdateCoordinator(DataUpdateCoordinator):
                   except:
                     pass
                   
+                  # Heat pump stages
+                  try:
+                    heatpump_stages = await device_helper.get_heatpump_stages_state(device_info=device)
+                    if heatpump_stages:
+                      parameters["heatpump_stages"] = heatpump_stages
+                      _LOGGER.debug("Device %s heatpump_stages: %s", device_id, heatpump_stages)
+                  except Exception as e:
+                    _LOGGER.debug("Failed to get heatpump_stages for device %s: %s", device_id, e)
+                  
+                  # Backup heater state
+                  try:
+                    backup_state = await device_helper.get_backup_state(device_info=device)
+                    if backup_state:
+                      parameters["backup_state"] = backup_state
+                      _LOGGER.debug("Device %s backup_state: %s", device_id, backup_state)
+                  except Exception as e:
+                    _LOGGER.debug("Failed to get backup_state for device %s: %s", device_id, e)
+                  
                 except Exception as param_exc:
                   _LOGGER.warning("Failed to extract parameters for device %s: %s", device_id, param_exc)
                 
                 device["parameters"] = parameters
+                device["building_id"] = building_id  # Store building_id for API calls
                 _LOGGER.debug("Device %s parameters: %s", device_id, parameters)
                 devices[device_id] = device
             else:
