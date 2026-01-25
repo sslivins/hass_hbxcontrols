@@ -1,6 +1,5 @@
 {
   "name": "SensorLinx integration for Home Assistant",
   "hacs": "1.6.0",
-  "iot_class": "cloud_polling",
   "homeassistant": "2023.1.0"
 }
