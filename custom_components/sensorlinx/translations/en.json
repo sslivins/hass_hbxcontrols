@@ -7,10 +7,10 @@
         "data": {
           "username": "Username",
           "password": "Password",
-          "scan_interval": "Update interval (seconds)"
+          "scan_interval": "Polling interval (seconds)"
         },
         "data_description": {
-          "scan_interval": "How often to poll for updates (60-3600 seconds, default 300)"
+          "scan_interval": "How often to fetch data from SensorLinx. Default is 300 seconds (5 minutes). Minimum 60, maximum 3600."
         }
       }
     },
