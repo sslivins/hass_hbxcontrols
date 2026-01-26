@@ -23,7 +23,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "pysensorlinx>=0.1.6",
+    "pysensorlinx>=0.1.8",
 ]
 
 [project.optional-dependencies]
