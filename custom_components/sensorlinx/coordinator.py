@@ -204,6 +204,42 @@ class SensorLinxDataUpdateCoordinator(DataUpdateCoordinator):
                   except:
                     pass
                   
+                  # Off staging setting
+                  try:
+                    parameters["off_staging"] = await device_helper.get_off_staging(device_info=device)
+                  except:
+                    pass
+                  
+                  # Backup lag time
+                  try:
+                    parameters["backup_lag_time"] = await device_helper.get_backup_lag_time(device_info=device)
+                  except:
+                    pass
+                  
+                  # Backup differential
+                  try:
+                    parameters["backup_differential"] = await device_helper.get_backup_differential(device_info=device)
+                  except:
+                    pass
+                  
+                  # Hot tank differential
+                  try:
+                    parameters["hot_tank_differential"] = await device_helper.get_hot_tank_differential(device_info=device)
+                  except:
+                    pass
+                  
+                  # Cold tank differential
+                  try:
+                    parameters["cold_tank_differential"] = await device_helper.get_cold_tank_differential(device_info=device)
+                  except:
+                    pass
+                  
+                  # Backup only outdoor temp
+                  try:
+                    parameters["backup_only_outdoor_temp"] = await device_helper.get_backup_only_outdoor_temp(device_info=device)
+                  except:
+                    pass
+                  
                 except Exception as param_exc:
                   _LOGGER.warning("Failed to extract parameters for device %s: %s", device_id, param_exc)
                 

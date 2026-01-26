@@ -195,6 +195,61 @@ async def async_setup_entry(
                         building_id,
                     )
                 )
+            
+            # Backup Lag Time
+            if "backup_lag_time" in device_parameters:
+                entities.append(
+                    BackupLagTime(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
+            
+            # Backup Differential
+            if "backup_differential" in device_parameters:
+                entities.append(
+                    BackupDifferential(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
+            
+            # Hot Tank Differential
+            if "hot_tank_differential" in device_parameters:
+                entities.append(
+                    HotTankDifferential(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
+            
+            # Cold Tank Differential
+            if "cold_tank_differential" in device_parameters:
+                entities.append(
+                    ColdTankDifferential(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
+            
+            # Backup Only Outdoor Temp
+            if "backup_only_outdoor_temp" in device_parameters:
+                entities.append(
+                    BackupOnlyOutdoorTemp(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
     
     _LOGGER.debug("Adding %d number entities", len(entities))
     async_add_entities(entities)
@@ -1311,4 +1366,408 @@ class RotateTime(CoordinatorEntity, NumberEntity):
             self._device_id,
         )
         await device_helper.set_rotate_time(int(value))
+        await self.coordinator.async_request_refresh()
+
+
+class BackupLagTime(CoordinatorEntity, NumberEntity):
+    """Backup Lag Time control - minimum lag time between HP stages and backup boiler."""
+
+    _attr_native_min_value = 1
+    _attr_native_max_value = 240
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = "min"
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:timer-pause"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_backup_lag_time"
+        self._attr_name = f"{device.get('name', device_id)} Backup Lag Time"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("backup_lag_time")
+        if value == "off":
+            return None
+        return value
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available (only when enabled)."""
+        if not (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        ):
+            return False
+        
+        # Only available when backup lag time is NOT off
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return False
+        parameters = device.get("parameters", {})
+        value = parameters.get("backup_lag_time")
+        return value != "off" and value is not None
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the backup lag time value."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_backup_lag_time(int(value))
+        await self.coordinator.async_request_refresh()
+
+
+class BackupDifferential(CoordinatorEntity, NumberEntity):
+    """Backup Differential control - temp difference below target to activate backup."""
+
+    _attr_native_min_value = 2
+    _attr_native_max_value = 100
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
+    _attr_device_class = NumberDeviceClass.TEMPERATURE
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:thermometer-alert"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_backup_differential"
+        self._attr_name = f"{device.get('name', device_id)} Backup Differential"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("backup_differential")
+        if value == "off":
+            return None
+        if isinstance(value, Temperature):
+            return value.value
+        return value
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available (only when enabled)."""
+        if not (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        ):
+            return False
+        
+        # Only available when backup differential is NOT off
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return False
+        parameters = device.get("parameters", {})
+        value = parameters.get("backup_differential")
+        return value != "off" and value is not None
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the backup differential value."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        temp = Temperature(value, "F")
+        await device_helper.set_backup_differential(temp)
+        await self.coordinator.async_request_refresh()
+
+
+class HotTankDifferential(CoordinatorEntity, NumberEntity):
+    """Hot Tank Differential control.
+    
+    Sets the desired hot tank differential. For example, a differential of 4°F
+    will allow for 2 degrees above and/or 2 degrees below the desired temperature
+    before a demand is present.
+    """
+
+    _attr_native_min_value = 2
+    _attr_native_max_value = 100
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
+    _attr_device_class = NumberDeviceClass.TEMPERATURE
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:thermometer-plus"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_hot_tank_differential"
+        self._attr_name = f"{device.get('name', device_id)} Hot Tank Differential"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("hot_tank_differential")
+        if isinstance(value, Temperature):
+            return value.value
+        return value
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+            and "hot_tank_differential" in self.coordinator.data["devices"][self._device_id].get("parameters", {})
+        )
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the hot tank differential value."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        temp = Temperature(value, "F")
+        await device_helper.set_hot_tank_differential(temp)
+        await self.coordinator.async_request_refresh()
+
+
+class ColdTankDifferential(CoordinatorEntity, NumberEntity):
+    """Cold Tank Differential control.
+    
+    Sets the desired cold tank differential. For example, a differential of 4°F
+    will allow for 2 degrees above and/or 2 degrees below the desired temperature
+    before a demand is present.
+    """
+
+    _attr_native_min_value = 2
+    _attr_native_max_value = 100
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
+    _attr_device_class = NumberDeviceClass.TEMPERATURE
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:thermometer-minus"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_cold_tank_differential"
+        self._attr_name = f"{device.get('name', device_id)} Cold Tank Differential"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("cold_tank_differential")
+        if isinstance(value, Temperature):
+            return value.value
+        return value
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+            and "cold_tank_differential" in self.coordinator.data["devices"][self._device_id].get("parameters", {})
+        )
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the cold tank differential value."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        temp = Temperature(value, "F")
+        await device_helper.set_cold_tank_differential(temp)
+        await self.coordinator.async_request_refresh()
+
+
+class BackupOnlyOutdoorTemp(CoordinatorEntity, NumberEntity):
+    """Backup Only Outdoor Temperature control.
+    
+    The outdoor temperature below which only the backup will run.
+    """
+
+    _attr_native_min_value = -40
+    _attr_native_max_value = 127
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
+    _attr_device_class = NumberDeviceClass.TEMPERATURE
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:snowflake-alert"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_backup_only_outdoor_temp"
+        self._attr_name = f"{device.get('name', device_id)} Backup Only Outdoor Temp"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("backup_only_outdoor_temp")
+        if value == "off":
+            return None
+        if isinstance(value, Temperature):
+            return value.value
+        return value
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available (only when enabled)."""
+        if not (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        ):
+            return False
+        
+        # Only available when backup only outdoor temp is NOT off
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return False
+        parameters = device.get("parameters", {})
+        value = parameters.get("backup_only_outdoor_temp")
+        return value != "off" and value is not None
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the backup only outdoor temp value."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        temp = Temperature(value, "F")
+        await device_helper.set_backup_only_outdoor_temp(temp)
         await self.coordinator.async_request_refresh()

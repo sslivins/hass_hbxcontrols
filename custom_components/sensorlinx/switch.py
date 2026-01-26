@@ -125,6 +125,50 @@ async def async_setup_entry(
                         building_id,
                     )
                 )
+            
+            # Synchronized Stage Off switch
+            if "off_staging" in device_parameters:
+                entities.append(
+                    SynchronizedStageOffSwitch(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
+            
+            # Backup Lag Time switch
+            if "backup_lag_time" in device_parameters:
+                entities.append(
+                    BackupLagTimeSwitch(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
+            
+            # Backup Differential switch
+            if "backup_differential" in device_parameters:
+                entities.append(
+                    BackupDifferentialSwitch(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
+            
+            # Backup Only Outdoor Temp switch
+            if "backup_only_outdoor_temp" in device_parameters:
+                entities.append(
+                    BackupOnlyOutdoorTempSwitch(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
     
     _LOGGER.debug("Adding %d switch entities", len(entities))
     async_add_entities(entities)
@@ -717,4 +761,316 @@ class RotateTimeSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_rotate_time("off")
+        await self.coordinator.async_request_refresh()
+
+
+class SynchronizedStageOffSwitch(CoordinatorEntity, SwitchEntity):
+    """Switch to enable/disable Synchronized Stage Off.
+    
+    When OFF: Heat pumps stage off normally based on tank temperature,
+              differential settings, or Stage OFF Lagtime settings.
+    When ON: All heat pumps stage off at the same time based on tank
+             temperature and differential settings.
+    """
+
+    _attr_icon = "mdi:sync"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the switch entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_synchronized_stage_off"
+        self._attr_name = f"{device.get('name', device_id)} Synchronized Stage Off"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if synchronized stage off is enabled."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        return bool(parameters.get("off_staging", False))
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        )
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on synchronized stage off."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_off_staging(True)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off synchronized stage off (normal staging)."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_off_staging(False)
+        await self.coordinator.async_request_refresh()
+
+
+class BackupLagTimeSwitch(CoordinatorEntity, SwitchEntity):
+    """Switch to enable/disable Backup Lag Time.
+    
+    Minimum lag time between heat pump stages and the backup boiler.
+    """
+
+    _attr_icon = "mdi:timer-pause"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the switch entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_backup_lag_time_enabled"
+        self._attr_name = f"{device.get('name', device_id)} Backup Lag Time"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if backup lag time is enabled (not 'off')."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("backup_lag_time")
+        return value != "off" and value is not None
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        )
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on backup lag time with default 10 minutes."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        # Default to 10 minutes
+        await device_helper.set_backup_lag_time(10)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off backup lag time."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_backup_lag_time("off")
+        await self.coordinator.async_request_refresh()
+
+
+class BackupDifferentialSwitch(CoordinatorEntity, SwitchEntity):
+    """Switch to enable/disable Backup Differential.
+    
+    Tank temperature difference below target at which backup boiler activates,
+    overriding backup time if needed.
+    """
+
+    _attr_icon = "mdi:thermometer-alert"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the switch entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_backup_differential_enabled"
+        self._attr_name = f"{device.get('name', device_id)} Backup Differential"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if backup differential is enabled (not 'off')."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("backup_differential")
+        return value != "off" and value is not None
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        )
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on backup differential with default 10°F."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        # Default to 10°F
+        temp = Temperature(10, "F")
+        await device_helper.set_backup_differential(temp)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off backup differential."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_backup_differential("off")
+        await self.coordinator.async_request_refresh()
+
+
+class BackupOnlyOutdoorTempSwitch(CoordinatorEntity, SwitchEntity):
+    """Switch to enable/disable Backup Only Outdoor Temperature.
+    
+    The outdoor temperature below which only the backup will run.
+    """
+
+    _attr_icon = "mdi:snowflake-alert"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the switch entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_backup_only_outdoor_temp_enabled"
+        self._attr_name = f"{device.get('name', device_id)} Backup Only Outdoor Temp"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if backup only outdoor temp is enabled (not 'off')."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("backup_only_outdoor_temp")
+        return value != "off" and value is not None
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        )
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on backup only outdoor temp with default -13°F."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        # Default to -13°F
+        temp = Temperature(-13, "F")
+        await device_helper.set_backup_only_outdoor_temp(temp)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off backup only outdoor temp."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_backup_only_outdoor_temp("off")
         await self.coordinator.async_request_refresh()
