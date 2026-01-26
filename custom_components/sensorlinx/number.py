@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from pysensorlinx.sensorlinx import SensorlinxDevice, Temperature
+from pysensorlinx.sensorlinx import SensorlinxDevice, Temperature, TemperatureDelta
 
 from homeassistant.components.number import (
     NumberDeviceClass,
@@ -1451,11 +1451,7 @@ class BackupLagTime(CoordinatorEntity, NumberEntity):
 class BackupDifferential(CoordinatorEntity, NumberEntity):
     """Backup Differential control - temp difference below target to activate backup."""
 
-    _attr_native_min_value = 2
-    _attr_native_max_value = 100
     _attr_native_step = 1
-    _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
-    _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:thermometer-alert"
     _attr_entity_category = EntityCategory.CONFIG
@@ -1485,6 +1481,27 @@ class BackupDifferential(CoordinatorEntity, NumberEntity):
         }
 
     @property
+    def native_unit_of_measurement(self) -> str:
+        """Return the unit of measurement based on HA config."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return UnitOfTemperature.CELSIUS
+        return UnitOfTemperature.FAHRENHEIT
+
+    @property
+    def native_min_value(self) -> float:
+        """Return minimum value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return round(2 * 5 / 9, 1)  # ~1.1°C
+        return 2
+
+    @property
+    def native_max_value(self) -> float:
+        """Return maximum value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return round(100 * 5 / 9, 1)  # ~55.6°C
+        return 100
+
+    @property
     def native_value(self) -> float | None:
         """Return the current value."""
         if not self.coordinator.data or "devices" not in self.coordinator.data:
@@ -1496,8 +1513,10 @@ class BackupDifferential(CoordinatorEntity, NumberEntity):
         value = parameters.get("backup_differential")
         if value == "off":
             return None
-        if isinstance(value, Temperature):
-            return value.value
+        if isinstance(value, TemperatureDelta):
+            if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+                return round(value.to_celsius(), 1)
+            return value.to_fahrenheit()
         return value
 
     @property
@@ -1526,8 +1545,12 @@ class BackupDifferential(CoordinatorEntity, NumberEntity):
             self._building_id,
             self._device_id,
         )
-        temp = Temperature(value, "F")
-        await device_helper.set_backup_differential(temp)
+        # Convert from user's unit system
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            delta = TemperatureDelta(value, "C")
+        else:
+            delta = TemperatureDelta(value, "F")
+        await device_helper.set_backup_differential(delta)
         await self.coordinator.async_request_refresh()
 
 
@@ -1539,11 +1562,7 @@ class HotTankDifferential(CoordinatorEntity, NumberEntity):
     before a demand is present.
     """
 
-    _attr_native_min_value = 2
-    _attr_native_max_value = 100
     _attr_native_step = 1
-    _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
-    _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:thermometer-plus"
     _attr_entity_category = EntityCategory.CONFIG
@@ -1573,6 +1592,27 @@ class HotTankDifferential(CoordinatorEntity, NumberEntity):
         }
 
     @property
+    def native_unit_of_measurement(self) -> str:
+        """Return the unit of measurement based on HA config."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return UnitOfTemperature.CELSIUS
+        return UnitOfTemperature.FAHRENHEIT
+
+    @property
+    def native_min_value(self) -> float:
+        """Return minimum value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return round(2 * 5 / 9, 1)  # ~1.1°C
+        return 2
+
+    @property
+    def native_max_value(self) -> float:
+        """Return maximum value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return round(100 * 5 / 9, 1)  # ~55.6°C
+        return 100
+
+    @property
     def native_value(self) -> float | None:
         """Return the current value."""
         if not self.coordinator.data or "devices" not in self.coordinator.data:
@@ -1582,8 +1622,10 @@ class HotTankDifferential(CoordinatorEntity, NumberEntity):
             return None
         parameters = device.get("parameters", {})
         value = parameters.get("hot_tank_differential")
-        if isinstance(value, Temperature):
-            return value.value
+        if isinstance(value, TemperatureDelta):
+            if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+                return round(value.to_celsius(), 1)
+            return value.to_fahrenheit()
         return value
 
     @property
@@ -1604,8 +1646,12 @@ class HotTankDifferential(CoordinatorEntity, NumberEntity):
             self._building_id,
             self._device_id,
         )
-        temp = Temperature(value, "F")
-        await device_helper.set_hot_tank_differential(temp)
+        # Convert from user's unit system
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            delta = TemperatureDelta(value, "C")
+        else:
+            delta = TemperatureDelta(value, "F")
+        await device_helper.set_hot_tank_differential(delta)
         await self.coordinator.async_request_refresh()
 
 
@@ -1617,11 +1663,7 @@ class ColdTankDifferential(CoordinatorEntity, NumberEntity):
     before a demand is present.
     """
 
-    _attr_native_min_value = 2
-    _attr_native_max_value = 100
     _attr_native_step = 1
-    _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
-    _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:thermometer-minus"
     _attr_entity_category = EntityCategory.CONFIG
@@ -1651,6 +1693,27 @@ class ColdTankDifferential(CoordinatorEntity, NumberEntity):
         }
 
     @property
+    def native_unit_of_measurement(self) -> str:
+        """Return the unit of measurement based on HA config."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return UnitOfTemperature.CELSIUS
+        return UnitOfTemperature.FAHRENHEIT
+
+    @property
+    def native_min_value(self) -> float:
+        """Return minimum value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return round(2 * 5 / 9, 1)  # ~1.1°C
+        return 2
+
+    @property
+    def native_max_value(self) -> float:
+        """Return maximum value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return round(100 * 5 / 9, 1)  # ~55.6°C
+        return 100
+
+    @property
     def native_value(self) -> float | None:
         """Return the current value."""
         if not self.coordinator.data or "devices" not in self.coordinator.data:
@@ -1660,8 +1723,10 @@ class ColdTankDifferential(CoordinatorEntity, NumberEntity):
             return None
         parameters = device.get("parameters", {})
         value = parameters.get("cold_tank_differential")
-        if isinstance(value, Temperature):
-            return value.value
+        if isinstance(value, TemperatureDelta):
+            if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+                return round(value.to_celsius(), 1)
+            return value.to_fahrenheit()
         return value
 
     @property
@@ -1682,8 +1747,12 @@ class ColdTankDifferential(CoordinatorEntity, NumberEntity):
             self._building_id,
             self._device_id,
         )
-        temp = Temperature(value, "F")
-        await device_helper.set_cold_tank_differential(temp)
+        # Convert from user's unit system
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            delta = TemperatureDelta(value, "C")
+        else:
+            delta = TemperatureDelta(value, "F")
+        await device_helper.set_cold_tank_differential(delta)
         await self.coordinator.async_request_refresh()
 
 

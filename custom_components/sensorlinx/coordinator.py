@@ -225,8 +225,9 @@ class SensorLinxDataUpdateCoordinator(DataUpdateCoordinator):
                   # Hot tank differential
                   try:
                     parameters["hot_tank_differential"] = await device_helper.get_hot_tank_differential(device_info=device)
-                  except:
-                    pass
+                    _LOGGER.debug("Device %s hot_tank_differential: %s (type: %s)", device_id, parameters["hot_tank_differential"], type(parameters["hot_tank_differential"]))
+                  except Exception as e:
+                    _LOGGER.warning("Failed to get hot_tank_differential for device %s: %s", device_id, e)
                   
                   # Cold tank differential
                   try:
