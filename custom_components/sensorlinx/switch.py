@@ -103,6 +103,28 @@ async def async_setup_entry(
                         building_id,
                     )
                 )
+            
+            # Rotate Cycles switch
+            if "rotate_cycles" in device_parameters:
+                entities.append(
+                    RotateCyclesSwitch(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
+            
+            # Rotate Time switch
+            if "rotate_time" in device_parameters:
+                entities.append(
+                    RotateTimeSwitch(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
     
     _LOGGER.debug("Adding %d switch entities", len(entities))
     async_add_entities(entities)
@@ -547,4 +569,152 @@ class ColdWeatherShutdownSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_cold_weather_shutdown("off")
+        await self.coordinator.async_request_refresh()
+
+
+class RotateCyclesSwitch(CoordinatorEntity, SwitchEntity):
+    """Switch to enable/disable Heat Pump Rotate Cycles."""
+
+    _attr_icon = "mdi:rotate-3d-variant"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the switch entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_rotate_cycles_enabled"
+        self._attr_name = f"{device.get('name', device_id)} Rotate Cycles"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if rotate cycles is enabled (not 'off')."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("rotate_cycles")
+        return value != "off" and value is not None
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        )
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on rotate cycles with default 1 cycle."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        # Default to 1 cycle
+        await device_helper.set_rotate_cycles(1)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off rotate cycles."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_rotate_cycles("off")
+        await self.coordinator.async_request_refresh()
+
+
+class RotateTimeSwitch(CoordinatorEntity, SwitchEntity):
+    """Switch to enable/disable Heat Pump Rotate Time."""
+
+    _attr_icon = "mdi:clock-rotate"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the switch entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_rotate_time_enabled"
+        self._attr_name = f"{device.get('name', device_id)} Rotate Time"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if rotate time is enabled (not 'off')."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("rotate_time")
+        return value != "off" and value is not None
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        )
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on rotate time with default 1 hour."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        # Default to 1 hour
+        await device_helper.set_rotate_time(1)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off rotate time."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_rotate_time("off")
         await self.coordinator.async_request_refresh()

@@ -182,6 +182,28 @@ class SensorLinxDataUpdateCoordinator(DataUpdateCoordinator):
                   except Exception as e:
                     _LOGGER.debug("Failed to get backup_state for device %s: %s", device_id, e)
                   
+                  # Stage lag times
+                  try:
+                    parameters["stage_on_lag_time"] = await device_helper.get_stage_on_lag_time(device_info=device)
+                  except:
+                    pass
+                  
+                  try:
+                    parameters["stage_off_lag_time"] = await device_helper.get_stage_off_lag_time(device_info=device)
+                  except:
+                    pass
+                  
+                  # Heat pump rotation settings
+                  try:
+                    parameters["rotate_cycles"] = await device_helper.get_rotate_cycles(device_info=device)
+                  except:
+                    pass
+                  
+                  try:
+                    parameters["rotate_time"] = await device_helper.get_rotate_time(device_info=device)
+                  except:
+                    pass
+                  
                 except Exception as param_exc:
                   _LOGGER.warning("Failed to extract parameters for device %s: %s", device_id, param_exc)
                 

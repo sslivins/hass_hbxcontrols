@@ -151,6 +151,50 @@ async def async_setup_entry(
                         building_id,
                     )
                 )
+            
+            # Stage On Lag Time
+            if "stage_on_lag_time" in device_parameters:
+                entities.append(
+                    StageOnLagTime(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
+            
+            # Stage Off Lag Time
+            if "stage_off_lag_time" in device_parameters:
+                entities.append(
+                    StageOffLagTime(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
+            
+            # Rotate Cycles
+            if "rotate_cycles" in device_parameters:
+                entities.append(
+                    RotateCycles(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
+            
+            # Rotate Time
+            if "rotate_time" in device_parameters:
+                entities.append(
+                    RotateTime(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
     
     _LOGGER.debug("Adding %d number entities", len(entities))
     async_add_entities(entities)
@@ -973,4 +1017,298 @@ class ColdWeatherShutdown(CoordinatorEntity, NumberEntity):
         )
         temp = Temperature(value, "F")
         await device_helper.set_cold_weather_shutdown(temp)
+        await self.coordinator.async_request_refresh()
+
+
+class StageOnLagTime(CoordinatorEntity, NumberEntity):
+    """Stage On Lag Time control."""
+
+    _attr_native_min_value = 1
+    _attr_native_max_value = 240
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = "min"
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:timer-plus"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_stage_on_lag_time"
+        self._attr_name = f"{device.get('name', device_id)} Stage On Lag Time"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        return parameters.get("stage_on_lag_time")
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+            and "stage_on_lag_time" in self.coordinator.data["devices"][self._device_id].get("parameters", {})
+        )
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the stage on lag time."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_stage_on_lag_time(int(value))
+        await self.coordinator.async_request_refresh()
+
+
+class StageOffLagTime(CoordinatorEntity, NumberEntity):
+    """Stage Off Lag Time control."""
+
+    _attr_native_min_value = 1
+    _attr_native_max_value = 240
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = "s"
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:timer-minus"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_stage_off_lag_time"
+        self._attr_name = f"{device.get('name', device_id)} Stage Off Lag Time"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        return parameters.get("stage_off_lag_time")
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+            and "stage_off_lag_time" in self.coordinator.data["devices"][self._device_id].get("parameters", {})
+        )
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the stage off lag time."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_stage_off_lag_time(int(value))
+        await self.coordinator.async_request_refresh()
+
+
+class RotateCycles(CoordinatorEntity, NumberEntity):
+    """Rotate Cycles control - number of cycles to rotate heat pumps."""
+
+    _attr_native_min_value = 1
+    _attr_native_max_value = 240
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = "cycles"
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:rotate-3d-variant"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_rotate_cycles"
+        self._attr_name = f"{device.get('name', device_id)} Rotate Cycles"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("rotate_cycles")
+        if value == "off":
+            return None
+        return value
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available (only when enabled)."""
+        if not (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        ):
+            return False
+        
+        # Only available when rotate cycles is NOT off
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return False
+        parameters = device.get("parameters", {})
+        value = parameters.get("rotate_cycles")
+        return value != "off" and value is not None
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the rotate cycles value."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_rotate_cycles(int(value))
+        await self.coordinator.async_request_refresh()
+
+
+class RotateTime(CoordinatorEntity, NumberEntity):
+    """Rotate Time control - time of rotation between heat pumps in hours."""
+
+    _attr_native_min_value = 1
+    _attr_native_max_value = 240
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = "h"
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:clock-rotate"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_rotate_time"
+        self._attr_name = f"{device.get('name', device_id)} Rotate Time"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("rotate_time")
+        if value == "off":
+            return None
+        return value
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available (only when enabled)."""
+        if not (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        ):
+            return False
+        
+        # Only available when rotate time is NOT off
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return False
+        parameters = device.get("parameters", {})
+        value = parameters.get("rotate_time")
+        return value != "off" and value is not None
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the rotate time value."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_rotate_time(int(value))
         await self.coordinator.async_request_refresh()
