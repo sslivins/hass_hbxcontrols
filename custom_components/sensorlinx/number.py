@@ -250,6 +250,28 @@ async def async_setup_entry(
                         building_id,
                     )
                 )
+            
+            # Number of Heat Pump Stages
+            if "number_of_stages" in device_parameters:
+                entities.append(
+                    NumberOfStages(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
+            
+            # Backup Temperature
+            if "backup_temp" in device_parameters:
+                entities.append(
+                    BackupTemp(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
     
     _LOGGER.debug("Adding %d number entities", len(entities))
     async_add_entities(entities)
@@ -1451,7 +1473,6 @@ class BackupLagTime(CoordinatorEntity, NumberEntity):
 class BackupDifferential(CoordinatorEntity, NumberEntity):
     """Backup Differential control - temp difference below target to activate backup."""
 
-    _attr_native_step = 1
     _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:thermometer-alert"
     _attr_entity_category = EntityCategory.CONFIG
@@ -1481,6 +1502,13 @@ class BackupDifferential(CoordinatorEntity, NumberEntity):
         }
 
     @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.5  # Round to nearest 0.5 for Celsius
+        return 1
+
+    @property
     def native_unit_of_measurement(self) -> str:
         """Return the unit of measurement based on HA config."""
         if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
@@ -1491,14 +1519,14 @@ class BackupDifferential(CoordinatorEntity, NumberEntity):
     def native_min_value(self) -> float:
         """Return minimum value based on unit system."""
         if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
-            return round(2 * 5 / 9, 1)  # ~1.1°C
+            return 1.0  # 2°F ≈ 1.1°C, rounded to 1.0
         return 2
 
     @property
     def native_max_value(self) -> float:
         """Return maximum value based on unit system."""
         if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
-            return round(100 * 5 / 9, 1)  # ~55.6°C
+            return 55.5  # 100°F ≈ 55.6°C, rounded to 55.5
         return 100
 
     @property
@@ -1515,7 +1543,8 @@ class BackupDifferential(CoordinatorEntity, NumberEntity):
             return None
         if isinstance(value, TemperatureDelta):
             if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
-                return round(value.to_celsius(), 1)
+                # Round to nearest 0.5 to match step
+                return round(value.to_celsius() * 2) / 2
             return value.to_fahrenheit()
         return value
 
@@ -1562,7 +1591,6 @@ class HotTankDifferential(CoordinatorEntity, NumberEntity):
     before a demand is present.
     """
 
-    _attr_native_step = 1
     _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:thermometer-plus"
     _attr_entity_category = EntityCategory.CONFIG
@@ -1592,6 +1620,13 @@ class HotTankDifferential(CoordinatorEntity, NumberEntity):
         }
 
     @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.5  # Round to nearest 0.5 for Celsius
+        return 1
+
+    @property
     def native_unit_of_measurement(self) -> str:
         """Return the unit of measurement based on HA config."""
         if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
@@ -1602,14 +1637,14 @@ class HotTankDifferential(CoordinatorEntity, NumberEntity):
     def native_min_value(self) -> float:
         """Return minimum value based on unit system."""
         if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
-            return round(2 * 5 / 9, 1)  # ~1.1°C
+            return 1.0  # 2°F ≈ 1.1°C, rounded to 1.0
         return 2
 
     @property
     def native_max_value(self) -> float:
         """Return maximum value based on unit system."""
         if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
-            return round(100 * 5 / 9, 1)  # ~55.6°C
+            return 55.5  # 100°F ≈ 55.6°C, rounded to 55.5
         return 100
 
     @property
@@ -1624,7 +1659,8 @@ class HotTankDifferential(CoordinatorEntity, NumberEntity):
         value = parameters.get("hot_tank_differential")
         if isinstance(value, TemperatureDelta):
             if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
-                return round(value.to_celsius(), 1)
+                # Round to nearest 0.5 to match step
+                return round(value.to_celsius() * 2) / 2
             return value.to_fahrenheit()
         return value
 
@@ -1663,7 +1699,6 @@ class ColdTankDifferential(CoordinatorEntity, NumberEntity):
     before a demand is present.
     """
 
-    _attr_native_step = 1
     _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:thermometer-minus"
     _attr_entity_category = EntityCategory.CONFIG
@@ -1693,6 +1728,13 @@ class ColdTankDifferential(CoordinatorEntity, NumberEntity):
         }
 
     @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.5  # Round to nearest 0.5 for Celsius
+        return 1
+
+    @property
     def native_unit_of_measurement(self) -> str:
         """Return the unit of measurement based on HA config."""
         if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
@@ -1703,14 +1745,14 @@ class ColdTankDifferential(CoordinatorEntity, NumberEntity):
     def native_min_value(self) -> float:
         """Return minimum value based on unit system."""
         if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
-            return round(2 * 5 / 9, 1)  # ~1.1°C
+            return 1.0  # 2°F ≈ 1.1°C, rounded to 1.0
         return 2
 
     @property
     def native_max_value(self) -> float:
         """Return maximum value based on unit system."""
         if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
-            return round(100 * 5 / 9, 1)  # ~55.6°C
+            return 55.5  # 100°F ≈ 55.6°C, rounded to 55.5
         return 100
 
     @property
@@ -1725,7 +1767,8 @@ class ColdTankDifferential(CoordinatorEntity, NumberEntity):
         value = parameters.get("cold_tank_differential")
         if isinstance(value, TemperatureDelta):
             if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
-                return round(value.to_celsius(), 1)
+                # Round to nearest 0.5 to match step
+                return round(value.to_celsius() * 2) / 2
             return value.to_fahrenheit()
         return value
 
@@ -1839,4 +1882,165 @@ class BackupOnlyOutdoorTemp(CoordinatorEntity, NumberEntity):
         )
         temp = Temperature(value, "F")
         await device_helper.set_backup_only_outdoor_temp(temp)
+        await self.coordinator.async_request_refresh()
+
+
+class NumberOfStages(CoordinatorEntity, NumberEntity):
+    """Number of Heat Pump Stages configuration.
+    
+    Sets the number of heat pump stages for the device.
+    Valid values are 1 through 4.
+    """
+
+    _attr_native_min_value = 1
+    _attr_native_max_value = 4
+    _attr_native_step = 1
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:heat-pump-outline"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_number_of_stages"
+        self._attr_name = f"{device.get('name', device_id)} Number of HP Stages"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the current value."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("number_of_stages")
+        if value is None:
+            return 1  # Default to 1 if not set
+        return int(value)
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+            and "number_of_stages" in self.coordinator.data["devices"][self._device_id].get("parameters", {})
+        )
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the number of heat pump stages."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_number_of_stages(int(value))
+        await self.coordinator.async_request_refresh()
+
+
+class BackupTemp(CoordinatorEntity, NumberEntity):
+    """Backup Temperature control.
+    
+    The temperature threshold at which the backup activates.
+    Valid range: 2°F to 100°F.
+    """
+
+    _attr_native_min_value = 2
+    _attr_native_max_value = 100
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
+    _attr_device_class = NumberDeviceClass.TEMPERATURE
+    _attr_mode = NumberMode.AUTO
+    _attr_icon = "mdi:fire-alert"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_backup_temp"
+        self._attr_name = f"{device.get('name', device_id)} Backup Temperature"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("backup_temp")
+        if value == "off":
+            return None
+        if isinstance(value, Temperature):
+            return value.value
+        return value
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available (only when enabled)."""
+        if not (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        ):
+            return False
+        
+        # Only available when backup temp is NOT off
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return False
+        parameters = device.get("parameters", {})
+        value = parameters.get("backup_temp")
+        return value != "off" and value is not None
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the backup temperature value."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        temp = Temperature(value, "F")
+        await device_helper.set_backup_temp(temp)
         await self.coordinator.async_request_refresh()

@@ -241,6 +241,18 @@ class SensorLinxDataUpdateCoordinator(DataUpdateCoordinator):
                   except:
                     pass
                   
+                  # Number of heat pump stages
+                  try:
+                    parameters["number_of_stages"] = await device_helper.get_number_of_stages(device_info=device)
+                  except:
+                    pass
+                  
+                  # Backup temperature
+                  try:
+                    parameters["backup_temp"] = await device_helper.get_backup_temp(device_info=device)
+                  except:
+                    pass
+                  
                 except Exception as param_exc:
                   _LOGGER.warning("Failed to extract parameters for device %s: %s", device_id, param_exc)
                 

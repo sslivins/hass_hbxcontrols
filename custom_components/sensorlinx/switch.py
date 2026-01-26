@@ -169,6 +169,17 @@ async def async_setup_entry(
                         building_id,
                     )
                 )
+            
+            # Backup Temperature switch
+            if "backup_temp" in device_parameters:
+                entities.append(
+                    BackupTempSwitch(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
     
     _LOGGER.debug("Adding %d switch entities", len(entities))
     async_add_entities(entities)
@@ -1073,4 +1084,82 @@ class BackupOnlyOutdoorTempSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_backup_only_outdoor_temp("off")
+        await self.coordinator.async_request_refresh()
+
+
+class BackupTempSwitch(CoordinatorEntity, SwitchEntity):
+    """Switch to enable/disable Backup Temperature.
+    
+    The temperature threshold at which the backup activates.
+    """
+
+    _attr_icon = "mdi:fire-alert"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the switch entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_backup_temp_enabled"
+        self._attr_name = f"{device.get('name', device_id)} Backup Temperature"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if backup temp is enabled (not 'off')."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("backup_temp")
+        return value != "off" and value is not None
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        )
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on backup temp with default 50°F."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        # Default to 50°F (middle of range)
+        temp = Temperature(50, "F")
+        await device_helper.set_backup_temp(temp)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off backup temp."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_backup_temp("off")
         await self.coordinator.async_request_refresh()
