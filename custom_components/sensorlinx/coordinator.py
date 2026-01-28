@@ -253,6 +253,36 @@ class SensorLinxDataUpdateCoordinator(DataUpdateCoordinator):
                   except:
                     pass
                   
+                  # Wide priority differential
+                  try:
+                    parameters["wide_priority_differential"] = await device_helper.get_wide_priority_differential(device_info=device)
+                  except:
+                    pass
+                  
+                  # Weather shutdown lag time
+                  try:
+                    parameters["weather_shutdown_lag_time"] = await device_helper.get_weather_shutdown_lag_time(device_info=device)
+                  except:
+                    pass
+                  
+                  # Two stage heat pump
+                  try:
+                    parameters["two_stage_heat_pump"] = await device_helper.get_two_stage_heat_pump(device_info=device)
+                  except:
+                    pass
+                  
+                  # Heat/cool switch delay
+                  try:
+                    parameters["heat_cool_switch_delay"] = await device_helper.get_heat_cool_switch_delay(device_info=device)
+                  except:
+                    pass
+                  
+                  # Backup only tank temp
+                  try:
+                    parameters["backup_only_tank_temp"] = await device_helper.get_backup_only_tank_temp(device_info=device)
+                  except:
+                    pass
+                  
                 except Exception as param_exc:
                   _LOGGER.warning("Failed to extract parameters for device %s: %s", device_id, param_exc)
                 

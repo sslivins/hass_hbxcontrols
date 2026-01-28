@@ -272,6 +272,39 @@ async def async_setup_entry(
                         building_id,
                     )
                 )
+            
+            # Weather Shutdown Lag Time
+            if "weather_shutdown_lag_time" in device_parameters:
+                entities.append(
+                    WeatherShutdownLagTime(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
+            
+            # Heat/Cool Switch Delay
+            if "heat_cool_switch_delay" in device_parameters:
+                entities.append(
+                    HeatCoolSwitchDelay(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
+            
+            # Backup Only Tank Temp
+            if "backup_only_tank_temp" in device_parameters:
+                entities.append(
+                    BackupOnlyTankTemp(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
     
     _LOGGER.debug("Adding %d number entities", len(entities))
     async_add_entities(entities)
@@ -282,10 +315,9 @@ class HotTankTargetTemperature(CoordinatorEntity, NumberEntity):
 
     _attr_native_min_value = 35
     _attr_native_max_value = 200
-    _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
-    _attr_mode = NumberMode.AUTO
+    _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:thermometer"
 
     def __init__(
@@ -311,6 +343,14 @@ class HotTankTargetTemperature(CoordinatorEntity, NumberEntity):
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
+
+    @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.1
+        return 1
+
 
     @property
     def native_value(self) -> float | None:
@@ -364,7 +404,6 @@ class HotTankMinTemperature(CoordinatorEntity, NumberEntity):
 
     _attr_native_min_value = 35
     _attr_native_max_value = 200
-    _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
@@ -394,6 +433,14 @@ class HotTankMinTemperature(CoordinatorEntity, NumberEntity):
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
+
+    @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.1
+        return 1
+
 
     @property
     def native_value(self) -> float | None:
@@ -445,7 +492,6 @@ class HotTankMaxTemperature(CoordinatorEntity, NumberEntity):
 
     _attr_native_min_value = 35
     _attr_native_max_value = 200
-    _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
@@ -475,6 +521,14 @@ class HotTankMaxTemperature(CoordinatorEntity, NumberEntity):
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
+
+    @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.1
+        return 1
+
 
     @property
     def native_value(self) -> float | None:
@@ -526,7 +580,6 @@ class HotTankOutdoorReset(CoordinatorEntity, NumberEntity):
 
     _attr_native_min_value = -40
     _attr_native_max_value = 127
-    _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
@@ -556,6 +609,14 @@ class HotTankOutdoorReset(CoordinatorEntity, NumberEntity):
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
+
+    @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.1
+        return 1
+
 
     @property
     def native_value(self) -> float | None:
@@ -609,10 +670,9 @@ class ColdTankTargetTemperature(CoordinatorEntity, NumberEntity):
 
     _attr_native_min_value = 35
     _attr_native_max_value = 200
-    _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
-    _attr_mode = NumberMode.AUTO
+    _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:thermometer"
 
     def __init__(
@@ -638,6 +698,14 @@ class ColdTankTargetTemperature(CoordinatorEntity, NumberEntity):
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
+
+    @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.1
+        return 1
+
 
     @property
     def native_value(self) -> float | None:
@@ -691,7 +759,6 @@ class ColdTankMinTemperature(CoordinatorEntity, NumberEntity):
 
     _attr_native_min_value = 35
     _attr_native_max_value = 200
-    _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
@@ -721,6 +788,14 @@ class ColdTankMinTemperature(CoordinatorEntity, NumberEntity):
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
+
+    @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.1
+        return 1
+
 
     @property
     def native_value(self) -> float | None:
@@ -772,7 +847,6 @@ class ColdTankMaxTemperature(CoordinatorEntity, NumberEntity):
 
     _attr_native_min_value = 35
     _attr_native_max_value = 200
-    _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
@@ -802,6 +876,14 @@ class ColdTankMaxTemperature(CoordinatorEntity, NumberEntity):
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
+
+    @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.1
+        return 1
+
 
     @property
     def native_value(self) -> float | None:
@@ -853,7 +935,6 @@ class ColdTankOutdoorReset(CoordinatorEntity, NumberEntity):
 
     _attr_native_min_value = -40
     _attr_native_max_value = 127
-    _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
@@ -883,6 +964,14 @@ class ColdTankOutdoorReset(CoordinatorEntity, NumberEntity):
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
+
+    @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.1
+        return 1
+
 
     @property
     def native_value(self) -> float | None:
@@ -936,10 +1025,9 @@ class WarmWeatherShutdown(CoordinatorEntity, NumberEntity):
 
     _attr_native_min_value = 34
     _attr_native_max_value = 180
-    _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
-    _attr_mode = NumberMode.AUTO
+    _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:weather-sunny-alert"
     _attr_entity_category = EntityCategory.CONFIG
 
@@ -966,6 +1054,14 @@ class WarmWeatherShutdown(CoordinatorEntity, NumberEntity):
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
+
+    @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.1
+        return 1
+
 
     @property
     def native_value(self) -> float | None:
@@ -1019,10 +1115,9 @@ class ColdWeatherShutdown(CoordinatorEntity, NumberEntity):
 
     _attr_native_min_value = 33
     _attr_native_max_value = 119
-    _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
-    _attr_mode = NumberMode.AUTO
+    _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:weather-snowy-heavy"
     _attr_entity_category = EntityCategory.CONFIG
 
@@ -1049,6 +1144,14 @@ class ColdWeatherShutdown(CoordinatorEntity, NumberEntity):
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
+
+    @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.1
+        return 1
+
 
     @property
     def native_value(self) -> float | None:
@@ -1505,7 +1608,7 @@ class BackupDifferential(CoordinatorEntity, NumberEntity):
     def native_step(self) -> float:
         """Return step value based on unit system."""
         if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
-            return 0.5  # Round to nearest 0.5 for Celsius
+            return 0.1  # Round to nearest 0.5 for Celsius
         return 1
 
     @property
@@ -1623,7 +1726,7 @@ class HotTankDifferential(CoordinatorEntity, NumberEntity):
     def native_step(self) -> float:
         """Return step value based on unit system."""
         if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
-            return 0.5  # Round to nearest 0.5 for Celsius
+            return 0.1  # Round to nearest 0.5 for Celsius
         return 1
 
     @property
@@ -1731,7 +1834,7 @@ class ColdTankDifferential(CoordinatorEntity, NumberEntity):
     def native_step(self) -> float:
         """Return step value based on unit system."""
         if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
-            return 0.5  # Round to nearest 0.5 for Celsius
+            return 0.1  # Round to nearest 0.5 for Celsius
         return 1
 
     @property
@@ -1807,7 +1910,6 @@ class BackupOnlyOutdoorTemp(CoordinatorEntity, NumberEntity):
 
     _attr_native_min_value = -40
     _attr_native_max_value = 127
-    _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_mode = NumberMode.BOX
@@ -1837,6 +1939,14 @@ class BackupOnlyOutdoorTemp(CoordinatorEntity, NumberEntity):
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
+
+    @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.1
+        return 1
+
 
     @property
     def native_value(self) -> float | None:
@@ -1968,10 +2078,9 @@ class BackupTemp(CoordinatorEntity, NumberEntity):
 
     _attr_native_min_value = 2
     _attr_native_max_value = 100
-    _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
-    _attr_mode = NumberMode.AUTO
+    _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:fire-alert"
     _attr_entity_category = EntityCategory.CONFIG
 
@@ -1998,6 +2107,14 @@ class BackupTemp(CoordinatorEntity, NumberEntity):
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
+
+    @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.1
+        return 1
+
 
     @property
     def native_value(self) -> float | None:
@@ -2043,4 +2160,253 @@ class BackupTemp(CoordinatorEntity, NumberEntity):
         )
         temp = Temperature(value, "F")
         await device_helper.set_backup_temp(temp)
+        await self.coordinator.async_request_refresh()
+
+
+class WeatherShutdownLagTime(CoordinatorEntity, NumberEntity):
+    """Weather Shutdown Lag Time control.
+    
+    Sets the lag time (in hours) for Warm Weather Shutdown (WWSD) or 
+    Cold Weather Shutdown (CWSD). This is how long to wait after the 
+    temperature threshold is met before entering shutdown mode.
+    """
+
+    _attr_native_min_value = 0
+    _attr_native_max_value = 240
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = "h"
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:timer-outline"
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_translation_key = "weather_shutdown_lag_time"
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_weather_shutdown_lag_time"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the current value."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("weather_shutdown_lag_time")
+        if value is None:
+            return 0
+        return int(value)
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+            and "weather_shutdown_lag_time" in self.coordinator.data["devices"][self._device_id].get("parameters", {})
+        )
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the weather shutdown lag time."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_weather_shutdown_lag_time(int(value))
+        await self.coordinator.async_request_refresh()
+
+
+class HeatCoolSwitchDelay(CoordinatorEntity, NumberEntity):
+    """Heat/Cool Switch Delay control.
+    
+    Sets the delay (in seconds) between the control switching between 
+    heat and cool calls. Range: 30 to 600 seconds.
+    """
+
+    _attr_native_min_value = 30
+    _attr_native_max_value = 600
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = "s"
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:timer-sync-outline"
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_translation_key = "heat_cool_switch_delay"
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_heat_cool_switch_delay"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the current value."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("heat_cool_switch_delay")
+        if value is None:
+            return None
+        return int(value)
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+            and "heat_cool_switch_delay" in self.coordinator.data["devices"][self._device_id].get("parameters", {})
+        )
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the heat/cool switch delay."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await device_helper.set_heat_cool_switch_delay(int(value))
+        await self.coordinator.async_request_refresh()
+
+
+class BackupOnlyTankTemp(CoordinatorEntity, NumberEntity):
+    """Backup Only Tank Temperature control.
+    
+    When the tank temperature exceeds this value, only the backup will heat 
+    the tank to the target temperature (heat pumps disabled).
+    Valid range: 33°F to 200°F.
+    """
+
+    _attr_native_min_value = 33
+    _attr_native_max_value = 200
+    _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
+    _attr_device_class = NumberDeviceClass.TEMPERATURE
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:thermometer-alert"
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_translation_key = "backup_only_tank_temp"
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: SensorLinxDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        
+        self._attr_unique_id = f"{device_id}_backup_only_tank_temp"
+        
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "SensorLinx",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.1
+        return 1
+
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("backup_only_tank_temp")
+        if value == "off":
+            return None
+        if isinstance(value, Temperature):
+            return value.value
+        return value
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available (only when enabled)."""
+        if not (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        ):
+            return False
+        
+        # Only available when backup only tank temp is NOT off
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return False
+        parameters = device.get("parameters", {})
+        value = parameters.get("backup_only_tank_temp")
+        return value != "off" and value is not None
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the backup only tank temperature value."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        temp = Temperature(value, "F")
+        await device_helper.set_backup_only_tank_temp(temp)
         await self.coordinator.async_request_refresh()
