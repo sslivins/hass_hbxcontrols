@@ -1,8 +1,8 @@
-# SensorLinx Integration for Home Assistant
+# HBX Controls Integration for Home Assistant
 
-![SensorLinx Logo](https://via.placeholder.com/150x50/0066cc/ffffff?text=SensorLinx)
+![HBX Controls Logo](https://via.placeholder.com/150x50/0066cc/ffffff?text=HBXControls)
 
-A comprehensive Home Assistant integration for SensorLinx IoT devices, providing seamless connectivity and control of your smart sensors, thermostats, and heat pumps.
+A comprehensive Home Assistant integration for HBX Controls IoT devices, providing seamless connectivity and control of your smart sensors, thermostats, and heat pumps.
 
 ## Features
 
@@ -30,13 +30,13 @@ A comprehensive Home Assistant integration for SensorLinx IoT devices, providing
 
 1. **Install via HACS** (recommended)
    - Add this repository as a custom repository
-   - Install the SensorLinx integration
+   - Install the HBX Controls integration
    - Restart Home Assistant
 
 2. **Configure Integration**
    - Go to Settings → Devices & Services
-   - Click "Add Integration" and search for "SensorLinx"
-   - Enter your SensorLinx credentials
+   - Click "Add Integration" and search for "HBX Controls"
+   - Enter your HBX Controls credentials
    - All devices will be automatically discovered
 
 3. **Start Monitoring**
@@ -47,12 +47,12 @@ A comprehensive Home Assistant integration for SensorLinx IoT devices, providing
 ## Requirements
 
 - Home Assistant 2023.1.0 or newer
-- Active SensorLinx account with device access
+- Active HBX Controls account with device access
 - Internet connectivity for API communication
 
 ## Device Compatibility
 
-This integration works with all SensorLinx-compatible devices including:
+This integration works with all HBX Controls-compatible devices including:
 - Smart temperature/humidity sensors
 - Pressure monitoring devices
 - Energy meters and power monitors
@@ -62,10 +62,10 @@ This integration works with all SensorLinx-compatible devices including:
 
 ## Support & Documentation
 
-- 📚 [Full Documentation](https://github.com/your_username/hass_sensorlinx)
-- 🐛 [Report Issues](https://github.com/your_username/hass_sensorlinx/issues)
+- 📚 [Full Documentation](https://github.com/sslivins/hass_hbxcontrols)
+- 🐛 [Report Issues](https://github.com/sslivins/hass_hbxcontrols/issues)
 - 💬 [Community Forum](https://community.home-assistant.io/)
 
 ---
 
-*This integration uses the [pysensorlinx](https://pypi.org/project/pysensorlinx/) Python library to communicate with SensorLinx devices.*
+*This integration uses the [pysensorlinx](https://pypi.org/project/pysensorlinx/) Python library to communicate with HBX Controls devices.*

@@ -1,10 +1,10 @@
-# SensorLinx Home Assistant Integration
+# HBX Controls Home Assistant Integration
 
-A custom Home Assistant integration for SensorLinx devices using the [pysensorlinx](https://pypi.org/project/pysensorlinx/) Python library.
+A custom Home Assistant integration for HBX Controls devices using the [pysensorlinx](https://pypi.org/project/pysensorlinx/) Python library.
 
 ## Features
 
-- **Sensor Monitoring**: Monitor temperature, humidity, pressure, energy consumption, and power usage from your SensorLinx devices
+- **Sensor Monitoring**: Monitor temperature, humidity, pressure, energy consumption, and power usage from your HBX Controls devices
 - **Binary Sensors**: Track device connectivity, alarms, maintenance mode, and heating/cooling status
 - **Climate Control**: Control thermostats and heat pumps with temperature setting and HVAC mode control
 - **Real-time Updates**: Automatic polling of device data every 5 minutes
@@ -19,12 +19,12 @@ A custom Home Assistant integration for SensorLinx devices using the [pysensorli
 3. Click the three dots in the top right corner and select "Custom repositories"
 4. Add this repository URL and select "Integration" as the category
 5. Click "Add"
-6. Find "SensorLinx" in the integration list and click "Install"
+6. Find "HBX Controls" in the integration list and click "Install"
 7. Restart Home Assistant
 
 ### Manual Installation
 
-1. Copy the `sensorlinx` folder to your `custom_components` directory
+1. Copy the `hbxcontrols` folder to your `custom_components` directory
 2. Restart Home Assistant
 3. Add the integration through the UI
 
@@ -32,8 +32,8 @@ A custom Home Assistant integration for SensorLinx devices using the [pysensorli
 
 1. In Home Assistant, go to **Configuration** > **Integrations**
 2. Click the **+** button to add a new integration
-3. Search for "SensorLinx"
-4. Enter your SensorLinx username and password
+3. Search for "HBX Controls"
+4. Enter your HBX Controls username and password
 5. Click **Submit**
 
 The integration will automatically discover all your devices and create entities for:
@@ -43,14 +43,14 @@ The integration will automatically discover all your devices and create entities
 
 ## Supported Devices
 
-This integration works with any SensorLinx-compatible device that provides:
+This integration works with any HBX Controls-compatible device that provides:
 - Sensor data (temperature, humidity, pressure, energy, power)
 - Device status information
 - Climate control capabilities (for thermostats/heat pumps)
 
 ## Device Parameters
 
-The integration automatically maps SensorLinx device parameters to Home Assistant entities:
+The integration automatically maps HBX Controls device parameters to Home Assistant entities:
 
 ### Sensors
 - `temperature` → Temperature sensor
@@ -75,7 +75,7 @@ The integration automatically maps SensorLinx device parameters to Home Assistan
 ## Troubleshooting
 
 ### Authentication Issues
-- Verify your SensorLinx username and password are correct
+- Verify your HBX Controls username and password are correct
 - Check that your account has access to the devices you want to monitor
 
 ### Connection Issues  
@@ -85,12 +85,12 @@ The integration automatically maps SensorLinx device parameters to Home Assistan
 ### Missing Entities
 - Not all devices may support all sensor types
 - Only devices with available parameters will create corresponding entities
-- Check your device configuration in the SensorLinx app/portal
+- Check your device configuration in the HBX Controls app/portal
 
 ## Development
 
 This integration is built using:
-- [pysensorlinx](https://pypi.org/project/pysensorlinx/) - Python library for SensorLinx API
+- [pysensorlinx](https://pypi.org/project/pysensorlinx/) - Python library for HBX Controls API
 - Home Assistant's DataUpdateCoordinator for efficient data management
 - Modern Home Assistant integration patterns and best practices
 
@@ -98,8 +98,8 @@ This integration is built using:
 
 For issues related to:
 - **Integration functionality**: Open an issue in this repository
-- **SensorLinx API/devices**: Contact SensorLinx support
-- **pysensorlinx library**: Check the [library repository](https://github.com/your_username/pysensorlinx)
+- **HBX Controls API/devices**: Contact HBX Controls support
+- **pysensorlinx library**: Check the [library repository](https://github.com/sslivins/pysensorlinx)
 
 ## License
 

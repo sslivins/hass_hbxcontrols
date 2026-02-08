@@ -17,7 +17,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DEVICE_TYPE_HEAT_PUMP, DEVICE_TYPE_THERMOSTAT, DOMAIN
-from .coordinator import SensorLinxDataUpdateCoordinator
+from .coordinator import HBXControlsDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the climate platform."""
-    coordinator: SensorLinxDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+    coordinator: HBXControlsDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
     
     entities = []
     
@@ -37,7 +37,7 @@ async def async_setup_entry(
             device_type = device.get("type", "").lower()
             if device_type in [DEVICE_TYPE_THERMOSTAT, DEVICE_TYPE_HEAT_PUMP]:
                 entities.append(
-                    SensorLinxClimate(
+                    HBXControlsClimate(
                         coordinator,
                         device_id,
                         device,
@@ -47,12 +47,12 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class SensorLinxClimate(CoordinatorEntity, ClimateEntity):
-    """Implementation of a SensorLinx climate entity."""
+class HBXControlsClimate(CoordinatorEntity, ClimateEntity):
+    """Implementation of an HBX Controls climate entity."""
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
     ) -> None:
@@ -84,7 +84,7 @@ class SensorLinxClimate(CoordinatorEntity, ClimateEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
             "name": device.get("name", device_id),
-            "manufacturer": "SensorLinx",
+            "manufacturer": "HBX Controls",
             "model": device.get("type", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
@@ -204,7 +204,7 @@ class SensorLinxClimate(CoordinatorEntity, ClimateEntity):
             from pysensorlinx.sensorlinx import SensorlinxDevice, Temperature
             device_helper = SensorlinxDevice(self.coordinator.sensorlinx, building_id, self._device_id)
             
-            # Convert temperature to Fahrenheit (SensorLinx uses Fahrenheit)
+            # Convert temperature to Fahrenheit (HBX Controls uses Fahrenheit)
             temp_f = Temperature(temperature, "C").to_fahrenheit() if self.temperature_unit == UnitOfTemperature.CELSIUS else temperature
             temp_obj = Temperature(temp_f, "F")
             
