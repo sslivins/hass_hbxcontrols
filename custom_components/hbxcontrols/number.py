@@ -18,7 +18,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .coordinator import SensorLinxDataUpdateCoordinator
+from .coordinator import HBXControlsDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the number platform."""
-    coordinator: SensorLinxDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+    coordinator: HBXControlsDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
     
     entities = []
     
@@ -169,7 +169,7 @@ class HotTankTargetTemperature(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -186,7 +186,7 @@ class HotTankTargetTemperature(CoordinatorEntity, NumberEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
             "name": device.get("name", device_id),
-            "manufacturer": "SensorLinx",
+            "manufacturer": "HBX Controls",
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
@@ -252,7 +252,7 @@ class HotTankMinTemperature(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -269,7 +269,7 @@ class HotTankMinTemperature(CoordinatorEntity, NumberEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
             "name": device.get("name", device_id),
-            "manufacturer": "SensorLinx",
+            "manufacturer": "HBX Controls",
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
@@ -333,7 +333,7 @@ class HotTankMaxTemperature(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -350,7 +350,7 @@ class HotTankMaxTemperature(CoordinatorEntity, NumberEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
             "name": device.get("name", device_id),
-            "manufacturer": "SensorLinx",
+            "manufacturer": "HBX Controls",
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
@@ -414,7 +414,7 @@ class HotTankOutdoorReset(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -431,7 +431,7 @@ class HotTankOutdoorReset(CoordinatorEntity, NumberEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
             "name": device.get("name", device_id),
-            "manufacturer": "SensorLinx",
+            "manufacturer": "HBX Controls",
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
@@ -496,7 +496,7 @@ class ColdTankTargetTemperature(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -513,7 +513,7 @@ class ColdTankTargetTemperature(CoordinatorEntity, NumberEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
             "name": device.get("name", device_id),
-            "manufacturer": "SensorLinx",
+            "manufacturer": "HBX Controls",
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
@@ -579,7 +579,7 @@ class ColdTankMinTemperature(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -596,7 +596,7 @@ class ColdTankMinTemperature(CoordinatorEntity, NumberEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
             "name": device.get("name", device_id),
-            "manufacturer": "SensorLinx",
+            "manufacturer": "HBX Controls",
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
@@ -660,7 +660,7 @@ class ColdTankMaxTemperature(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -677,7 +677,7 @@ class ColdTankMaxTemperature(CoordinatorEntity, NumberEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
             "name": device.get("name", device_id),
-            "manufacturer": "SensorLinx",
+            "manufacturer": "HBX Controls",
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
@@ -741,7 +741,7 @@ class ColdTankOutdoorReset(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -758,7 +758,7 @@ class ColdTankOutdoorReset(CoordinatorEntity, NumberEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
             "name": device.get("name", device_id),
-            "manufacturer": "SensorLinx",
+            "manufacturer": "HBX Controls",
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
@@ -824,7 +824,7 @@ class WarmWeatherShutdown(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -841,7 +841,7 @@ class WarmWeatherShutdown(CoordinatorEntity, NumberEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
             "name": device.get("name", device_id),
-            "manufacturer": "SensorLinx",
+            "manufacturer": "HBX Controls",
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
@@ -907,7 +907,7 @@ class ColdWeatherShutdown(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -924,7 +924,7 @@ class ColdWeatherShutdown(CoordinatorEntity, NumberEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
             "name": device.get("name", device_id),
-            "manufacturer": "SensorLinx",
+            "manufacturer": "HBX Controls",
             "model": device.get("deviceType", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }

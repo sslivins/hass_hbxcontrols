@@ -3,15 +3,15 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hass-sensorlinx"
+name = "hass-hbxcontrols"
 version = "1.0.0"
-description = "Home Assistant custom integration for SensorLinx devices"
+description = "Home Assistant custom integration for HBX Controls devices"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "Your Name", email = "your.email@example.com"}
 ]
-keywords = ["homeassistant", "sensorlinx", "integration", "iot"]
+keywords = ["homeassistant", "hbxcontrols", "sensorlinx", "integration", "iot"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: End Users/Desktop",
@@ -35,10 +35,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your_username/hass_sensorlinx"
-Repository = "https://github.com/your_username/hass_sensorlinx"
-Issues = "https://github.com/your_username/hass_sensorlinx/issues"
+Homepage = "https://github.com/sslivins/hass_hbxcontrols"
+Repository = "https://github.com/sslivins/hass_hbxcontrols"
+Issues = "https://github.com/sslivins/hass_hbxcontrols/issues"
 
 [tool.setuptools.packages.find]
-include = ["sensorlinx*"]
+include = ["hbxcontrols*"]
 exclude = ["tests*"]

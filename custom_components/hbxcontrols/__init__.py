@@ -1,4 +1,4 @@
-"""The SensorLinx integration."""
+"""The HBX Controls integration."""
 from __future__ import annotations
 
 import logging
@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import DOMAIN
-from .coordinator import SensorLinxDataUpdateCoordinator
+from .coordinator import HBXControlsDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,8 +24,8 @@ PLATFORMS: list[Platform] = [
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up SensorLinx from a config entry."""
-    coordinator = SensorLinxDataUpdateCoordinator(hass, entry)
+    """Set up HBX Controls from a config entry."""
+    coordinator = HBXControlsDataUpdateCoordinator(hass, entry)
     
     await coordinator.async_config_entry_first_refresh()
     

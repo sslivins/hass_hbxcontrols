@@ -1,25 +1,63 @@
-"""Platform for binary sensor integration."""
+"""Platform for sensor integration."""
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-from homeassistant.components.binary_sensor import (
-    BinarySensorDeviceClass,
-    BinarySensorEntity,
-    BinarySensorEntityDescription,
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import (
+    EntityCategory,
+    PERCENTAGE,
+    UnitOfEnergy,
+    UnitOfPower,
+    UnitOfPressure,
+    UnitOfTemperature,
+    UnitOfTime,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .coordinator import SensorLinxDataUpdateCoordinator
+from .coordinator import HBXControlsDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-BINARY_SENSOR_DESCRIPTIONS: tuple[BinarySensorEntityDescription, ...] = ()
+SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
+    # Temperature sensors - these will be dynamically created based on available temperature sensors
+    SensorEntityDescription(
+        key="temperature_tank",
+        name="Tank Temperature",
+        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="temperature_outdoor",
+        name="Outdoor Temperature", 
+        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="firmware_version",
+        name="Firmware Version",
+        device_class=SensorDeviceClass.ENUM,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key="device_type",
+        name="Device Type",
+        device_class=SensorDeviceClass.ENUM,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+)
 
 
 async def async_setup_entry(
@@ -27,12 +65,12 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the binary sensor platform."""
-    coordinator: SensorLinxDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+    """Set up the sensor platform."""
+    coordinator: HBXControlsDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
     
     entities = []
     
-    _LOGGER.debug("Setting up binary sensor platform")
+    _LOGGER.debug("Setting up sensor platform")
     _LOGGER.debug("Coordinator data: %s", coordinator.data)
     
     if coordinator.data and "devices" in coordinator.data:
@@ -44,11 +82,11 @@ async def async_setup_entry(
             device_parameters = device.get("parameters", {})
             _LOGGER.debug("Device %s parameters: %s", device_id, device_parameters)
             
-            for description in BINARY_SENSOR_DESCRIPTIONS:
+            for description in SENSOR_DESCRIPTIONS:
                 if description.key in device_parameters:
-                    _LOGGER.debug("Creating binary sensor %s for device %s", description.key, device_id)
+                    _LOGGER.debug("Creating sensor %s for device %s", description.key, device_id)
                     entities.append(
-                        SensorLinxBinarySensor(
+                        HBXControlsSensor(
                             coordinator,
                             description,
                             device_id,
@@ -58,64 +96,58 @@ async def async_setup_entry(
                 else:
                     _LOGGER.debug("Device %s does not have parameter %s", device_id, description.key)
             
-            # Create heat pump stage binary sensors
+            # Create heat pump stage sensors
             heatpump_stages = device_parameters.get("heatpump_stages", [])
             for stage in heatpump_stages:
                 stage_title = stage.get("title", "Stage")
                 
-                _LOGGER.debug("Creating heat pump stage binary sensors for device %s stage %s", 
+                _LOGGER.debug("Creating heat pump stage runtime sensor for device %s stage %s", 
                              device_id, stage_title)
                 
-                # Running sensor
+                # Runtime sensor
                 entities.append(
-                    HeatPumpStageBinarySensor(
+                    HeatPumpStageRuntimeSensor(
                         coordinator,
                         device_id,
                         device,
                         stage_title,
-                        "running",
-                        "activated",
-                        "Running",
                     )
                 )
             
-            # Create backup heater binary sensors
+            # Create backup heater sensors
             backup_state = device_parameters.get("backup_state")
             if backup_state:
                 backup_title = backup_state.get("title", "Backup")
                 
-                _LOGGER.debug("Creating backup binary sensors for device %s", device_id)
+                _LOGGER.debug("Creating backup runtime sensor for device %s", device_id)
                 
-                # Running sensor
+                # Runtime sensor
                 entities.append(
-                    BackupBinarySensor(
+                    BackupRuntimeSensor(
                         coordinator,
                         device_id,
                         device,
                         backup_title,
-                        "running",
-                        "activated",
-                        "Running",
                     )
                 )
     else:
         _LOGGER.debug("No coordinator data or devices found")
     
-    _LOGGER.debug("Adding %d binary sensor entities", len(entities))
+    _LOGGER.debug("Adding %d sensor entities", len(entities))
     async_add_entities(entities)
 
 
-class SensorLinxBinarySensor(CoordinatorEntity, BinarySensorEntity):
-    """Implementation of a SensorLinx binary sensor."""
+class HBXControlsSensor(CoordinatorEntity, SensorEntity):
+    """Implementation of an HBX Controls sensor."""
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
-        description: BinarySensorEntityDescription,
+        coordinator: HBXControlsDataUpdateCoordinator,
+        description: SensorEntityDescription,
         device_id: str,
         device: dict[str, Any],
     ) -> None:
-        """Initialize the binary sensor."""
+        """Initialize the sensor."""
         super().__init__(coordinator)
         self.entity_description = description
         self._device_id = device_id
@@ -128,14 +160,14 @@ class SensorLinxBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
             "name": device.get("name", device_id),
-            "manufacturer": "SensorLinx",
-            "model": device.get("deviceType", "Unknown"),
+            "manufacturer": "HBX Controls",
+            "model": device.get("type", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
 
     @property
-    def is_on(self) -> bool | None:
-        """Return true if the binary sensor is on."""
+    def native_value(self) -> str | int | float | None:
+        """Return the native value of the sensor."""
         if not self.coordinator.data or "devices" not in self.coordinator.data:
             return None
             
@@ -144,20 +176,7 @@ class SensorLinxBinarySensor(CoordinatorEntity, BinarySensorEntity):
             return None
             
         parameters = device.get("parameters", {})
-        value = parameters.get(self.entity_description.key)
-        
-        if value is None:
-            return None
-        
-        # Default handling
-        if isinstance(value, bool):
-            return value
-        elif isinstance(value, (int, float)):
-            return value > 0
-        elif isinstance(value, str):
-            return value.lower() in ("true", "on", "1", "yes", "active")
-        
-        return None
+        return parameters.get(self.entity_description.key)
 
     @property
     def available(self) -> bool:
@@ -170,50 +189,42 @@ class SensorLinxBinarySensor(CoordinatorEntity, BinarySensorEntity):
         )
 
 
-class HeatPumpStageBinarySensor(CoordinatorEntity, BinarySensorEntity):
-    """Implementation of a Heat Pump Stage binary sensor."""
+class HeatPumpStageRuntimeSensor(CoordinatorEntity, SensorEntity):
+    """Implementation of a Heat Pump Stage Runtime sensor."""
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         stage_title: str,
-        sensor_type: str,  # "running" or "enabled"
-        data_key: str,  # "activated" or "enabled"
-        name_suffix: str,  # "Running" or "Enabled"
     ) -> None:
-        """Initialize the heat pump stage binary sensor."""
+        """Initialize the heat pump stage runtime sensor."""
         super().__init__(coordinator)
         self._device_id = device_id
         self._device = device
         self._stage_title = stage_title
-        self._sensor_type = sensor_type
-        self._data_key = data_key
         
-        # Create a safe key from title for unique_id (e.g., "Stage 1" -> "stage_1")
+        # Create a safe key from title for unique_id
         safe_title = stage_title.lower().replace(" ", "_")
         
-        self._attr_unique_id = f"{device_id}_hp_{safe_title}_{sensor_type}"
-        self._attr_name = f"{device.get('name', device_id)} HP {stage_title} {name_suffix}"
-        
-        if sensor_type == "running":
-            self._attr_icon = "mdi:heat-pump"
-        else:
-            self._attr_icon = "mdi:toggle-switch"
+        self._attr_unique_id = f"{device_id}_hp_{safe_title}_runtime"
+        self._attr_name = f"{device.get('name', device_id)} HP {stage_title} Runtime"
+        self._attr_icon = "mdi:timer-outline"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         
         # Device info
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
             "name": device.get("name", device_id),
-            "manufacturer": "SensorLinx",
-            "model": device.get("deviceType", "Unknown"),
+            "manufacturer": "HBX Controls",
+            "model": device.get("type", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
 
     @property
-    def is_on(self) -> bool | None:
-        """Return true if the heat pump stage is running/enabled."""
+    def native_value(self) -> str | None:
+        """Return the runtime of the heat pump stage."""
         if not self.coordinator.data or "devices" not in self.coordinator.data:
             return None
             
@@ -227,8 +238,7 @@ class HeatPumpStageBinarySensor(CoordinatorEntity, BinarySensorEntity):
         # Find the stage by title
         for stage in heatpump_stages:
             if stage.get("title") == self._stage_title:
-                value = stage.get(self._data_key)
-                return bool(value) if value is not None else None
+                return stage.get("runTime")
         
         return None
 
@@ -254,47 +264,40 @@ class HeatPumpStageBinarySensor(CoordinatorEntity, BinarySensorEntity):
         return any(stage.get("title") == self._stage_title for stage in heatpump_stages)
 
 
-class BackupBinarySensor(CoordinatorEntity, BinarySensorEntity):
-    """Implementation of a Backup Heater binary sensor."""
+class BackupRuntimeSensor(CoordinatorEntity, SensorEntity):
+    """Implementation of a Backup Heater Runtime sensor."""
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         backup_title: str,
-        sensor_type: str,  # "running" or "enabled"
-        data_key: str,  # "activated" or "enabled"
-        name_suffix: str,  # "Running" or "Enabled"
     ) -> None:
-        """Initialize the backup heater binary sensor."""
+        """Initialize the backup heater runtime sensor."""
         super().__init__(coordinator)
         self._device_id = device_id
         self._device = device
         self._backup_title = backup_title
-        self._sensor_type = sensor_type
-        self._data_key = data_key
         
-        self._attr_unique_id = f"{device_id}_backup_{sensor_type}"
-        self._attr_name = f"{device.get('name', device_id)} {backup_title} {name_suffix}"
-        
-        if sensor_type == "running":
-            self._attr_icon = "mdi:fire"
-        else:
-            self._attr_icon = "mdi:toggle-switch"
+        self._attr_unique_id = f"{device_id}_backup_runtime"
+        self._attr_name = f"{device.get('name', device_id)} {backup_title} Runtime"
+        self._attr_icon = "mdi:timer-outline"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_icon = "mdi:timer-outline"
         
         # Device info
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
             "name": device.get("name", device_id),
-            "manufacturer": "SensorLinx",
-            "model": device.get("deviceType", "Unknown"),
+            "manufacturer": "HBX Controls",
+            "model": device.get("type", "Unknown"),
             "sw_version": device.get("firmware_version"),
         }
 
     @property
-    def is_on(self) -> bool | None:
-        """Return true if the backup heater is running/enabled."""
+    def native_value(self) -> str | None:
+        """Return the runtime of the backup heater."""
         if not self.coordinator.data or "devices" not in self.coordinator.data:
             return None
             
@@ -308,8 +311,7 @@ class BackupBinarySensor(CoordinatorEntity, BinarySensorEntity):
         if not backup_state:
             return None
         
-        value = backup_state.get(self._data_key)
-        return bool(value) if value is not None else None
+        return backup_state.get("runTime")
 
     @property
     def available(self) -> bool:

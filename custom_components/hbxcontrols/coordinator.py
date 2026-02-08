@@ -1,4 +1,4 @@
-"""DataUpdateCoordinator for SensorLinx."""
+"""DataUpdateCoordinator for HBX Controls."""
 from __future__ import annotations
 
 import logging
@@ -18,7 +18,7 @@ from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-class SensorLinxDataUpdateCoordinator(DataUpdateCoordinator):
+class HBXControlsDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching data from the SensorLinx API."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -37,7 +37,7 @@ class SensorLinxDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict[str, Any]:
       """Update data via library."""
-      _LOGGER.debug("Starting SensorLinx data update")
+      _LOGGER.debug("Starting HBX Controls data update")
       try:
         # Login
         _LOGGER.debug("Logging in as user: %s", self.entry.data[CONF_USERNAME])
@@ -50,7 +50,7 @@ class SensorLinxDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Fetching user profile")
         profile = await self.sensorlinx.get_profile()
         if not profile:
-          _LOGGER.debug("No profile returned from SensorLinx")
+          _LOGGER.debug("No profile returned from HBX Controls")
           raise ConfigEntryAuthFailed("Failed to get user profile")
         _LOGGER.debug("User profile fetched: %s", profile)
         
@@ -58,7 +58,7 @@ class SensorLinxDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Fetching buildings")
         buildings = await self.sensorlinx.get_buildings()
         if not buildings:
-          _LOGGER.debug("No buildings returned from SensorLinx")
+          _LOGGER.debug("No buildings returned from HBX Controls")
           buildings = []
         else:
           _LOGGER.debug("Fetched %d buildings", len(buildings))
@@ -210,6 +210,6 @@ class SensorLinxDataUpdateCoordinator(DataUpdateCoordinator):
         raise UpdateFailed(f"Error communicating with API: {exc}") from exc
 
     async def async_shutdown(self) -> None:
-        """Close the SensorLinx connection."""
+        """Close the HBX Controls connection."""
         if self.sensorlinx:
             await self.sensorlinx.close()

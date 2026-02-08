@@ -1,4 +1,4 @@
-"""Config flow for SensorLinx integration."""
+"""Config flow for HBX Controls integration."""
 from __future__ import annotations
 
 import logging
@@ -37,7 +37,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for SensorLinx."""
+    """Handle a config flow for HBX Controls."""
 
     VERSION = 1
 
@@ -97,7 +97,7 @@ async def validate_input(hass, data: dict[str, Any]) -> dict[str, Any]:
             raise InvalidAuth
             
         # Return info that you want to store in the config entry.
-        return {"title": f"SensorLinx ({data[CONF_USERNAME]})"}
+        return {"title": f"HBX Controls ({data[CONF_USERNAME]})"}
         
     except Exception as exc:
         _LOGGER.error("Failed to connect to SensorLinx: %s", exc)
