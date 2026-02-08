@@ -8,5 +8,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/sslivins/hass_hbxcontrols/issues",
   "requirements": ["pysensorlinx==0.1.4"],
-  "version": "1.0.0"
+  "version": "2.0.0"
 }
