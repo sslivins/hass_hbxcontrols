@@ -5,13 +5,11 @@
         "title": "HBX Controls",
         "description": "Set up your HBX Controls integration",
         "data": {
-          "username": "Username",
-          "password": "Password",
+          "username": "Your SensorLinx account username",
+          "password": "Your SensorLinx account password",
           "scan_interval": "Polling interval (seconds)"
         },
         "data_description": {
-          "username": "Your SensorLinx account username",
-          "password": "Your SensorLinx account password",
           "scan_interval": "How often to fetch data from SensorLinx. Default is 300 seconds (5 minutes). Minimum 60, maximum 3600."
         }
       }
