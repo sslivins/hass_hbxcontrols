@@ -24,7 +24,7 @@ A custom Home Assistant integration for HBX Controls devices using the [pysensor
 
 ### Manual Installation
 
-1. Copy the `hbxcontrols` folder to your `custom_components` directory
+1. Copy the `hbx_controls` folder to your `custom_components` directory
 2. Restart Home Assistant
 3. Add the integration through the UI
 
