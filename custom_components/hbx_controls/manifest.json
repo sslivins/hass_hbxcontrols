@@ -1,5 +1,5 @@
 {
-  "domain": "hbxcontrols",
+  "domain": "hbx_controls",
   "name": "HBX Controls",
   "codeowners": ["@sslivins"],
   "config_flow": true,

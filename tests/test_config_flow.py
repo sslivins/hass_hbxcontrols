@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 
-from custom_components.hbxcontrols.const import DOMAIN
+from custom_components.hbx_controls.const import DOMAIN
 
 
 async def test_form(hass):
@@ -17,10 +17,10 @@ async def test_form(hass):
     assert result["errors"] == {}
 
     with patch(
-        "custom_components.hbxcontrols.config_flow.validate_input",
+        "custom_components.hbx_controls.config_flow.validate_input",
         return_value={"title": "HBX Controls (test@example.com)"},
     ), patch(
-        "custom_components.hbxcontrols.async_setup_entry",
+        "custom_components.hbx_controls.async_setup_entry",
         return_value=True,
     ) as mock_setup_entry:
         result2 = await hass.config_entries.flow.async_configure(
@@ -48,7 +48,7 @@ async def test_form_cannot_connect(hass):
     )
 
     with patch(
-        "custom_components.hbxcontrols.config_flow.validate_input",
+        "custom_components.hbx_controls.config_flow.validate_input",
         side_effect=Exception,
     ):
         result2 = await hass.config_entries.flow.async_configure(
