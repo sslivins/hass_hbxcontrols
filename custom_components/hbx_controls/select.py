@@ -14,7 +14,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .coordinator import SensorLinxDataUpdateCoordinator
+from .coordinator import HBXControlsDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the select platform."""
-    coordinator: SensorLinxDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+    coordinator: HBXControlsDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
     
     entities = []
     
@@ -68,7 +68,7 @@ class HvacModePrioritySelect(CoordinatorEntity, SelectEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,

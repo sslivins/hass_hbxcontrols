@@ -1210,7 +1210,7 @@ class StageOnLagTime(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -1278,7 +1278,7 @@ class StageOffLagTime(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -1346,7 +1346,7 @@ class RotateCycles(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -1425,7 +1425,7 @@ class RotateTime(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -1504,7 +1504,7 @@ class BackupLagTime(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -1579,7 +1579,7 @@ class BackupDifferential(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -1697,7 +1697,7 @@ class HotTankDifferential(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -1805,7 +1805,7 @@ class ColdTankDifferential(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -1915,7 +1915,7 @@ class BackupOnlyOutdoorTemp(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -2008,7 +2008,7 @@ class NumberOfStages(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -2083,7 +2083,7 @@ class BackupTemp(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -2180,7 +2180,7 @@ class WeatherShutdownLagTime(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -2256,7 +2256,7 @@ class HeatCoolSwitchDelay(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -2333,7 +2333,7 @@ class BackupOnlyTankTemp(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,

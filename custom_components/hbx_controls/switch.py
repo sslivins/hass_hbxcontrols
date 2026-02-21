@@ -668,7 +668,7 @@ class RotateCyclesSwitch(CoordinatorEntity, SwitchEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -742,7 +742,7 @@ class RotateTimeSwitch(CoordinatorEntity, SwitchEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -822,7 +822,7 @@ class SynchronizedStageOffSwitch(CoordinatorEntity, SwitchEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -897,7 +897,7 @@ class BackupLagTimeSwitch(CoordinatorEntity, SwitchEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -975,7 +975,7 @@ class BackupDifferentialSwitch(CoordinatorEntity, SwitchEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -1053,7 +1053,7 @@ class BackupOnlyOutdoorTempSwitch(CoordinatorEntity, SwitchEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -1131,7 +1131,7 @@ class BackupTempSwitch(CoordinatorEntity, SwitchEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -1214,7 +1214,7 @@ class WidePriorityDifferentialSwitch(CoordinatorEntity, SwitchEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -1293,7 +1293,7 @@ class TwoStageHeatPumpSwitch(CoordinatorEntity, SwitchEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
@@ -1387,7 +1387,7 @@ class BackupOnlyTankTempSwitch(CoordinatorEntity, SwitchEntity):
 
     def __init__(
         self,
-        coordinator: SensorLinxDataUpdateCoordinator,
+        coordinator: HBXControlsDataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         building_id: str,
