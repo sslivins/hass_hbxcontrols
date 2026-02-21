@@ -193,17 +193,14 @@ class HotTankTargetTemperature(CoordinatorEntity, NumberEntity):
 
     @property
     def native_value(self) -> float | None:
-        """Return the current value."""
+        """Return the current value (computed target from the temperatures array)."""
         if not self.coordinator.data or "devices" not in self.coordinator.data:
             return None
         device = self.coordinator.data["devices"].get(self._device_id)
         if not device:
             return None
         parameters = device.get("parameters", {})
-        value = parameters.get("hot_tank_min_temp")
-        if isinstance(value, Temperature):
-            return value.value
-        return value
+        return parameters.get("target_temperature_tank")
 
     @property
     def available(self) -> bool:

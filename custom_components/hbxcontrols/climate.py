@@ -16,7 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DEVICE_TYPE_HEAT_PUMP, DEVICE_TYPE_THERMOSTAT, DOMAIN
+from .const import DOMAIN
 from .coordinator import HBXControlsDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,8 +34,9 @@ async def async_setup_entry(
     
     if coordinator.data and "devices" in coordinator.data:
         for device_id, device in coordinator.data["devices"].items():
-            device_type = device.get("type", "").lower()
-            if device_type in [DEVICE_TYPE_THERMOSTAT, DEVICE_TYPE_HEAT_PUMP]:
+            parameters = device.get("parameters", {})
+            # Create climate entity for any device that has temperature data
+            if "target_temperature_tank" in parameters or "temperature_tank" in parameters:
                 entities.append(
                     HBXControlsClimate(
                         coordinator,
@@ -100,8 +101,8 @@ class HBXControlsClimate(CoordinatorEntity, ClimateEntity):
             return None
             
         parameters = device.get("parameters", {})
-        # Try to get hot tank temperature first, then cold tank
-        temp = parameters.get("temperature_hot_tank") or parameters.get("temperature_cold_tank")
+        # Get the tank temperature from the temperatures array (searched by title)
+        temp = parameters.get("temperature_tank")
         return temp
 
     @property
@@ -115,15 +116,8 @@ class HBXControlsClimate(CoordinatorEntity, ClimateEntity):
             return None
             
         parameters = device.get("parameters", {})
-        # Get target temperature based on current mode
-        hvac_mode = self.hvac_mode
-        if hvac_mode == HVACMode.HEAT:
-            return parameters.get("target_temperature_hot_tank")
-        elif hvac_mode == HVACMode.COOL:
-            return parameters.get("target_temperature_cold_tank")
-        else:
-            # Auto mode - return hot tank target as default
-            return parameters.get("target_temperature_hot_tank")
+        # Use the computed target from the temperatures array regardless of mode
+        return parameters.get("target_temperature_tank")
 
     @property
     def hvac_mode(self) -> HVACMode | None:
