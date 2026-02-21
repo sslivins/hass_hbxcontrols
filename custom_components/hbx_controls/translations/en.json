@@ -43,5 +43,141 @@
       "auth_failed": "Invalid username or password",
       "unknown": "Unexpected error occurred"
     }
+  },
+  "entity": {
+    "switch": {
+      "hot_tank_outdoor_reset": {
+        "name": "Hot Tank Outdoor Reset"
+      },
+      "cold_tank_outdoor_reset": {
+        "name": "Cold Tank Outdoor Reset"
+      },
+      "permanent_heat_demand": {
+        "name": "Permanent Heat Demand"
+      },
+      "permanent_cool_demand": {
+        "name": "Permanent Cool Demand"
+      },
+      "warm_weather_shutdown": {
+        "name": "Warm Weather Shutdown"
+      },
+      "cold_weather_shutdown": {
+        "name": "Cold Weather Shutdown"
+      },
+      "rotate_cycles": {
+        "name": "Rotate by Cycles"
+      },
+      "rotate_time": {
+        "name": "Rotate by Time"
+      },
+      "synchronized_stage_off": {
+        "name": "Synchronized Stage Off"
+      },
+      "backup_lag_time": {
+        "name": "Backup Lag Time"
+      },
+      "backup_differential": {
+        "name": "Backup Differential"
+      },
+      "backup_only_outdoor_temp": {
+        "name": "Backup Only Outdoor Temp"
+      },
+      "backup_temp": {
+        "name": "Backup Temperature"
+      },
+      "wide_priority_differential": {
+        "name": "Wide Priority Differential"
+      },
+      "two_stage_heat_pump": {
+        "name": "Two Stage Heat Pump"
+      },
+      "backup_only_tank_temp": {
+        "name": "Backup Only Tank Temp"
+      }
+    },
+    "select": {
+      "hvac_mode_priority": {
+        "name": "HVAC Mode Priority",
+        "state": {
+          "heat": "Heat",
+          "cool": "Cool",
+          "auto": "Auto"
+        }
+      }
+    },
+    "number": {
+      "hot_tank_target_temperature": {
+        "name": "Hot Tank Target Temperature"
+      },
+      "hot_tank_min_temperature": {
+        "name": "Hot Tank Min Temperature"
+      },
+      "hot_tank_max_temperature": {
+        "name": "Hot Tank Max Temperature"
+      },
+      "hot_tank_outdoor_reset": {
+        "name": "Hot Tank Design Outdoor Temp"
+      },
+      "cold_tank_target_temperature": {
+        "name": "Cold Tank Target Temperature"
+      },
+      "cold_tank_min_temperature": {
+        "name": "Cold Tank Min Temperature"
+      },
+      "cold_tank_max_temperature": {
+        "name": "Cold Tank Max Temperature"
+      },
+      "cold_tank_outdoor_reset": {
+        "name": "Cold Tank Design Outdoor Temp"
+      },
+      "warm_weather_shutdown": {
+        "name": "Warm Weather Shutdown Temp"
+      },
+      "cold_weather_shutdown": {
+        "name": "Cold Weather Shutdown Temp"
+      },
+      "stage_on_lag_time": {
+        "name": "Stage ON Lag Time"
+      },
+      "stage_off_lag_time": {
+        "name": "Stage OFF Lag Time"
+      },
+      "rotate_cycles": {
+        "name": "Rotate Cycles"
+      },
+      "rotate_time": {
+        "name": "Rotate Time"
+      },
+      "backup_lag_time": {
+        "name": "Backup Lag Time"
+      },
+      "backup_differential": {
+        "name": "Backup Differential"
+      },
+      "hot_tank_differential": {
+        "name": "Hot Tank Differential"
+      },
+      "cold_tank_differential": {
+        "name": "Cold Tank Differential"
+      },
+      "backup_only_outdoor_temp": {
+        "name": "Backup Only Outdoor Temp"
+      },
+      "number_of_stages": {
+        "name": "Number of Stages"
+      },
+      "backup_temp": {
+        "name": "Backup Temperature"
+      },
+      "weather_shutdown_lag_time": {
+        "name": "Weather Shutdown Lag Time"
+      },
+      "heat_cool_switch_delay": {
+        "name": "Heat/Cool Switch Delay"
+      },
+      "backup_only_tank_temp": {
+        "name": "Backup Only Tank Temp"
+      }
+    }
   }
 }

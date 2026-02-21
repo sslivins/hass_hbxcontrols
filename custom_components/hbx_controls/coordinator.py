@@ -182,6 +182,107 @@ class HBXControlsDataUpdateCoordinator(DataUpdateCoordinator):
                   except Exception as e:
                     _LOGGER.debug("Failed to get backup_state for device %s: %s", device_id, e)
                   
+                  # Stage lag times
+                  try:
+                    parameters["stage_on_lag_time"] = await device_helper.get_stage_on_lag_time(device_info=device)
+                  except:
+                    pass
+                  
+                  try:
+                    parameters["stage_off_lag_time"] = await device_helper.get_stage_off_lag_time(device_info=device)
+                  except:
+                    pass
+                  
+                  # Heat pump rotation settings
+                  try:
+                    parameters["rotate_cycles"] = await device_helper.get_rotate_cycles(device_info=device)
+                  except:
+                    pass
+                  
+                  try:
+                    parameters["rotate_time"] = await device_helper.get_rotate_time(device_info=device)
+                  except:
+                    pass
+                  
+                  # Off staging setting
+                  try:
+                    parameters["off_staging"] = await device_helper.get_off_staging(device_info=device)
+                  except:
+                    pass
+                  
+                  # Backup lag time
+                  try:
+                    parameters["backup_lag_time"] = await device_helper.get_backup_lag_time(device_info=device)
+                  except:
+                    pass
+                  
+                  # Backup differential
+                  try:
+                    parameters["backup_differential"] = await device_helper.get_backup_differential(device_info=device)
+                  except:
+                    pass
+                  
+                  # Hot tank differential
+                  try:
+                    parameters["hot_tank_differential"] = await device_helper.get_hot_tank_differential(device_info=device)
+                    _LOGGER.debug("Device %s hot_tank_differential: %s (type: %s)", device_id, parameters["hot_tank_differential"], type(parameters["hot_tank_differential"]))
+                  except Exception as e:
+                    _LOGGER.warning("Failed to get hot_tank_differential for device %s: %s", device_id, e)
+                  
+                  # Cold tank differential
+                  try:
+                    parameters["cold_tank_differential"] = await device_helper.get_cold_tank_differential(device_info=device)
+                  except:
+                    pass
+                  
+                  # Backup only outdoor temp
+                  try:
+                    parameters["backup_only_outdoor_temp"] = await device_helper.get_backup_only_outdoor_temp(device_info=device)
+                  except:
+                    pass
+                  
+                  # Number of heat pump stages
+                  try:
+                    parameters["number_of_stages"] = await device_helper.get_number_of_stages(device_info=device)
+                  except:
+                    pass
+                  
+                  # Backup temperature
+                  try:
+                    parameters["backup_temp"] = await device_helper.get_backup_temp(device_info=device)
+                  except:
+                    pass
+                  
+                  # Wide priority differential
+                  try:
+                    parameters["wide_priority_differential"] = await device_helper.get_wide_priority_differential(device_info=device)
+                  except:
+                    pass
+                  
+                  # Weather shutdown lag time
+                  try:
+                    parameters["weather_shutdown_lag_time"] = await device_helper.get_weather_shutdown_lag_time(device_info=device)
+                  except:
+                    pass
+                  
+                  # Two stage heat pump
+                  try:
+                    parameters["two_stage_heat_pump"] = await device_helper.get_two_stage_heat_pump(device_info=device)
+                  except:
+                    pass
+                  
+                  # Heat/cool switch delay
+                  try:
+                    parameters["heat_cool_switch_delay"] = await device_helper.get_heat_cool_switch_delay(device_info=device)
+                  except:
+                    pass
+                  
+                  # Backup only tank temp
+                  try:
+                    parameters["backup_only_tank_temp"] = await device_helper.get_backup_only_tank_temp(device_info=device)
+                  except:
+                    pass
+                  
                 except Exception as param_exc:
                   _LOGGER.warning("Failed to extract parameters for device %s: %s", device_id, param_exc)
                 
