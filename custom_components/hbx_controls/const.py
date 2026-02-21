@@ -1,6 +1,6 @@
 """Constants for the HBX Controls integration."""
 
-DOMAIN = "hbxcontrols"
+DOMAIN = "hbx_controls"
 
 # Configuration keys
 CONF_USERNAME = "username"
