@@ -164,7 +164,7 @@ class HotTankTargetTemperature(CoordinatorEntity, NumberEntity):
     _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
-    _attr_mode = NumberMode.AUTO
+    _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:thermometer"
 
     def __init__(
@@ -488,7 +488,7 @@ class ColdTankTargetTemperature(CoordinatorEntity, NumberEntity):
     _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
     _attr_device_class = NumberDeviceClass.TEMPERATURE
-    _attr_mode = NumberMode.AUTO
+    _attr_mode = NumberMode.BOX
     _attr_icon = "mdi:thermometer"
 
     def __init__(

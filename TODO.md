@@ -1,43 +1,30 @@
-# Climate Entity: Outdoor Reset Target Temperature Issue
+# HBX Controls Integration — TODO
 
-## Summary
+## Done (this branch)
 
-When **outdoor reset is enabled**, the climate entity's target temperature behavior is incorrect for writes. It reads the correct calculated target but sets the wrong parameter.
+- [x] **pysensorlinx min/max swap fix** — `dbt`=max, `mbt`=min, `dst`=max, `mst`=min (published as 0.1.9)
+- [x] **requirements.txt** — bumped to `pysensorlinx==0.1.9`
+- [x] **climate.py: current_temperature** — changed from `temperature_hot_tank` to `temperature_tank`
+- [x] **climate.py: target_temperature** — always reads `target_temperature_tank` (the controller's computed target) regardless of HVAC mode
+- [x] **climate.py: entity creation gate** — removed device type check (`thermostat`/`heat_pump`), now gates on `temperature_tank` or `target_temperature_tank` presence
+- [x] **number.py: HotTankTargetTemperature.native_value** — reads `target_temperature_tank` instead of `hot_tank_min_temp`
+- [x] **Domain rename** — merged `hbxcontrols` → `hbx_controls` from main
 
-## Current Behavior
+## Still Open (this branch)
 
-### Reading (correct)
-- The climate entity displays the **calculated target** from `temperatures[0].target` in the API response.
-- This is the live value the controller computes from the outdoor reset curve based on current outdoor temp, min tank temp, max tank temp, and design outdoor temp.
-- This works correctly.
+- [ ] **climate.py: set_temperature when outdoor reset is on** — currently calls `set_hot_tank_target_temp()` which only sets the min end of the outdoor reset curve. Options:
+  - **Option A**: Make target temperature read-only when outdoor reset is on
+  - **Option B**: Disable set_temperature entirely when outdoor reset is on
+  - **Option C**: Adjust both min and max proportionally
+- [ ] **ColdTankTargetTemperature.native_value** — still reads `cold_tank_min_temp`; may need `target_temperature_cold_tank` equivalent if a cold tank temperature exists in the API
+- [ ] **const.py cleanup** — `DEVICE_TYPE_THERMOSTAT` and `DEVICE_TYPE_HEAT_PUMP` are defined but no longer imported anywhere; consider removing
 
-### Writing (incorrect)
-- When a user adjusts the target temperature on the climate entity, it calls `set_hot_tank_target_temp()`.
-- In pysensorlinx, `set_hot_tank_target_temp()` is an alias for `set_hot_tank_min_temp()` — it only changes the **min** end of the outdoor reset curve.
-- The user thinks they're setting the actual target, but they're really moving one end of the curve.
-- When outdoor reset is **off**, this is fine — min and max are set to the same value (flat target). The `HotTankTargetTemperature` number entity already does this correctly by setting both min and max.
+## Future (separate branches)
 
-## What Needs to Change
-
-When outdoor reset is enabled:
-1. The climate entity's `set_temperature` should either be **disabled/read-only**, or it should clearly indicate it's not a direct setpoint.
-2. The `HotTankMinTemperature` and `HotTankMaxTemperature` number entities are the proper controls when outdoor reset is on — these already work correctly and are only available when outdoor reset is enabled.
-
-### Options to Consider
-- **Option A**: Make the climate entity's target temperature **read-only** when outdoor reset is on (show the calculated target but don't allow setting it).
-- **Option B**: Disable the climate entity entirely when outdoor reset is on and rely solely on the number entities.
-- **Option C**: Keep it writable but change the behavior — e.g., adjust both min and max proportionally.
-
-## Related: pysensorlinx Min/Max Swap Bug (FIXED)
-
-The `HOT_TANK_MIN_TEMP` and `HOT_TANK_MAX_TEMP` constants in pysensorlinx were mapped to the wrong API keys. This has been fixed in the local pysensorlinx repo (branch TBD) but needs to be published:
-
-- `dbt` = Design Boiler Temperature = **max** (was incorrectly mapped as min)
-- `mbt` = Minimum Boiler Temperature = **min** (was incorrectly mapped as max)
-- Same issue for cold tank: `dst` = max, `mst` = min
-
-Once a new pysensorlinx version is published with this fix, update `requirements.txt` in this repo to use the new version. No code changes needed in this repo for that fix.
-
-## Files to Modify
-- `custom_components/hbxcontrols/climate.py` — `async_set_temperature()` and possibly `target_temperature` property
-- `requirements.txt` — bump pysensorlinx version after the library fix is published
+- [ ] **Integration tests** — add `pytest` + `pytest-homeassistant-custom-component` tests:
+  - `conftest.py` — shared fixtures (mock coordinator, mock config entry, `make_coordinator_data()` helper)
+  - `test_climate.py` — entity creation gating, `current_temperature`, `target_temperature`, `hvac_mode`, `hvac_action`, availability
+  - `test_number.py` — `HotTankTargetTemperature` value/availability, min/max entities, outdoor reset interaction
+  - `test_sensor.py` — sensor entity creation and value reading
+  - `test_switch.py` — switch entity state and toggle actions
+- [ ] **CI pipeline** — GitHub Actions to run tests on PR

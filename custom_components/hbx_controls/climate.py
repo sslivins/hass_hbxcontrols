@@ -64,7 +64,7 @@ class HBXControlsClimate(CoordinatorEntity, ClimateEntity):
         
         self._attr_unique_id = f"{device_id}_climate"
         self._attr_name = f"{device.get('name', device_id)} Climate"
-        self._attr_temperature_unit = UnitOfTemperature.CELSIUS
+        self._attr_temperature_unit = UnitOfTemperature.FAHRENHEIT
         
         # Supported features
         self._attr_supported_features = (
