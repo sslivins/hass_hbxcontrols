@@ -47,74 +47,57 @@
   "entity": {
     "switch": {
       "hot_tank_outdoor_reset": {
-        "name": "Hot Tank Outdoor Reset",
-        "description": "Enable Outdoor Reset for the hot tank. When enabled, the Tank Temperature setting will be replaced by Min Tank and Max Tank Temperature settings, allowing the target to adjust based on outdoor temperature."
+        "name": "Hot Tank Outdoor Reset"
       },
       "cold_tank_outdoor_reset": {
-        "name": "Cold Tank Outdoor Reset",
-        "description": "Enable Outdoor Reset for the cold tank. When enabled, the Tank Temperature setting will be replaced by Min Tank and Max Tank Temperature settings, allowing the target to adjust based on outdoor temperature."
+        "name": "Cold Tank Outdoor Reset"
       },
       "permanent_heat_demand": {
-        "name": "Permanent Heat Demand",
-        "description": "Force the system into permanent heating mode. When enabled, the system will continuously call for heat regardless of temperature setpoints."
+        "name": "Permanent Heat Demand"
       },
       "permanent_cool_demand": {
-        "name": "Permanent Cool Demand",
-        "description": "Force the system into permanent cooling mode. When enabled, the system will continuously call for cooling regardless of temperature setpoints."
+        "name": "Permanent Cool Demand"
       },
       "warm_weather_shutdown": {
-        "name": "Warm Weather Shutdown",
-        "description": "Enable Warm Weather Shutdown (WWSD). When enabled, if the outdoor temperature rises above the configured threshold, the system (heat pumps and backup boiler) will be shut off."
+        "name": "Warm Weather Shutdown"
       },
       "cold_weather_shutdown": {
-        "name": "Cold Weather Shutdown",
-        "description": "Enable Cold Weather Shutdown (CWSD). When enabled, if the outdoor temperature drops below the configured threshold, the heat pumps will be shut off."
+        "name": "Cold Weather Shutdown"
       },
       "rotate_cycles": {
-        "name": "Rotate by Cycles",
-        "description": "Enable heat pump rotation based on cycles. One cycle is defined as the heat pump turning on and then off. When enabled, heat pumps will rotate after the configured number of cycles."
+        "name": "Rotate by Cycles"
       },
       "rotate_time": {
-        "name": "Rotate by Time",
-        "description": "Enable heat pump rotation based on run time. When enabled, heat pumps will rotate when the first heat pump exceeds the second by the configured number of hours of run time."
+        "name": "Rotate by Time"
       },
       "synchronized_stage_off": {
-        "name": "Synchronized Stage Off",
-        "description": "Enable synchronized stage off (Off Staging). When OFF, heat pumps will stage off normally based on tank temperature, differential settings, or Stage OFF Lagtime settings. When ON, all heat pumps will stage off at the same time."
+        "name": "Synchronized Stage Off"
       },
       "backup_lag_time": {
-        "name": "Backup Lag Time",
-        "description": "Enable backup lag time. When enabled, a minimum delay (in minutes) is required between heat pump stages and the backup boiler turning on."
+        "name": "Backup Lag Time"
       },
       "backup_differential": {
-        "name": "Backup Differential",
-        "description": "Enable backup differential. When enabled, the backup will come on instantaneously if the tank temperature drops to or below the target minus the differential (overriding backup lag time settings)."
+        "name": "Backup Differential"
       },
       "backup_only_outdoor_temp": {
-        "name": "Backup Only Outdoor Temp",
-        "description": "Enable Backup Only mode based on outdoor temperature. When enabled, if the outdoor temperature is below the configured threshold, only the backup will run for heating calls (heat pumps disabled)."
+        "name": "Backup Only Outdoor Temp"
       },
       "backup_temp": {
-        "name": "Backup Temperature",
-        "description": "Enable backup temperature threshold. When enabled, if the outdoor temperature falls below the configured value, the backup will be allowed to come on."
+        "name": "Backup Temperature"
       },
       "wide_priority_differential": {
-        "name": "Wide Priority Differential",
-        "description": "When enabled, the tank target will exceed the setpoint by the configured differential before switching between heat and cool demands if both are present. When disabled, the tank target switches as soon as the setpoint is satisfied. This should not be used for single tank systems."
+        "name": "Wide Priority Differential"
       },
       "two_stage_heat_pump": {
-        "name": "Two Stage Heat Pump",
-        "description": "Enable this when using dual stage heat pumps or pumps with 2 compressors per unit. This setting only appears when the Number of Stages is set to an even value (2 or 4)."
+        "name": "Two Stage Heat Pump"
       },
       "backup_only_tank_temp": {
-        "name": "Backup Only Tank Temp",
-        "description": "When enabled, if the tank temperature exceeds the configured threshold, only the backup will heat the tank to the target temperature (heat pumps disabled). This should be set lower than the hot tank target temperature."
+        "name": "Backup Only Tank Temp"
       }
     },
     "select": {
       "hvac_mode_priority": {
         "name": "HVAC Mode Priority",
-        "description": "Sets the HVAC mode priority for the device. Heat: prioritize heating. Cool: prioritize cooling. Auto: automatically switch based on demand.",
         "state": {
           "heat": "Heat",
           "cool": "Cool",
@@ -124,100 +107,76 @@
     },
     "number": {
       "hot_tank_target_temperature": {
-        "name": "Hot Tank Target Temperature",
-        "description": "The target temperature for the hot tank. This is the desired temperature the system will try to maintain."
+        "name": "Hot Tank Target Temperature"
       },
       "hot_tank_min_temperature": {
-        "name": "Hot Tank Min Temperature",
-        "description": "The minimum tank temperature for the hot tank (bottom of the heat curve). The target will approach this temperature as the outdoor temperature approaches the Warm Weather Shutdown threshold. Only used when Outdoor Reset is enabled."
+        "name": "Hot Tank Min Temperature"
       },
       "hot_tank_max_temperature": {
-        "name": "Hot Tank Max Temperature",
-        "description": "The maximum tank temperature for the hot tank (top of the heat curve). The target will approach this temperature as the outdoor temperature approaches the Design Outdoor Temperature. Only used when Outdoor Reset is enabled."
+        "name": "Hot Tank Max Temperature"
       },
       "hot_tank_outdoor_reset": {
-        "name": "Hot Tank Design Outdoor Temp",
-        "description": "The Design Outdoor Temperature for the hot tank outdoor reset calculation. This is the coldest expected outdoor temperature used to calculate the heat curve. Range: -40°F to 127°F."
+        "name": "Hot Tank Design Outdoor Temp"
       },
       "cold_tank_target_temperature": {
-        "name": "Cold Tank Target Temperature",
-        "description": "The target temperature for the cold tank. This is the desired temperature the system will try to maintain."
+        "name": "Cold Tank Target Temperature"
       },
       "cold_tank_min_temperature": {
-        "name": "Cold Tank Min Temperature",
-        "description": "The minimum tank temperature for the cold tank (bottom of the cooling curve). The target will approach this temperature as the outdoor temperature approaches the Outdoor Design Temperature. Only used when Outdoor Reset is enabled."
+        "name": "Cold Tank Min Temperature"
       },
       "cold_tank_max_temperature": {
-        "name": "Cold Tank Max Temperature",
-        "description": "The maximum tank temperature for the cold tank (top of the cooling curve). The target will approach this temperature as the outdoor temperature approaches the Cold Weather Shutdown threshold. Only used when Outdoor Reset is enabled."
+        "name": "Cold Tank Max Temperature"
       },
       "cold_tank_outdoor_reset": {
-        "name": "Cold Tank Design Outdoor Temp",
-        "description": "The Design Outdoor Temperature for the cold tank outdoor reset calculation. This is the hottest expected outdoor temperature used to calculate the cooling curve. Range: 0°F to 119°F."
+        "name": "Cold Tank Design Outdoor Temp"
       },
       "warm_weather_shutdown": {
-        "name": "Warm Weather Shutdown Temp",
-        "description": "The outdoor temperature threshold for Warm Weather Shutdown (WWSD). If the outdoor temperature rises above this value, the system (heat pumps and backup boiler) will be shut off. Range: 34°F to 180°F."
+        "name": "Warm Weather Shutdown Temp"
       },
       "cold_weather_shutdown": {
-        "name": "Cold Weather Shutdown Temp",
-        "description": "The outdoor temperature threshold for Cold Weather Shutdown (CWSD). If the outdoor temperature drops below this value, the heat pumps will be shut off. Range: 33°F to 119°F."
+        "name": "Cold Weather Shutdown Temp"
       },
       "stage_on_lag_time": {
-        "name": "Stage ON Lag Time",
-        "description": "The minimum lag time (in minutes) between heat pump stages turning on. Even if the differential has been exceeded, this time must elapse before the next stage can turn on. Range: 1 to 240 minutes."
+        "name": "Stage ON Lag Time"
       },
       "stage_off_lag_time": {
-        "name": "Stage OFF Lag Time",
-        "description": "The minimum lag time (in seconds) between heat pump stages turning off. Range: 1 to 240 seconds."
+        "name": "Stage OFF Lag Time"
       },
       "rotate_cycles": {
-        "name": "Rotate Cycles",
-        "description": "The number of cycles at which to rotate the heat pumps. One cycle is defined as the heat pump turning on and then off. Range: 1 to 240 cycles."
+        "name": "Rotate Cycles"
       },
       "rotate_time": {
-        "name": "Rotate Time",
-        "description": "The time of rotation between heat pumps (in hours of run time). Heat pumps will rotate when the first heat pump exceeds the second by this amount. Range: 1 to 240 hours."
+        "name": "Rotate Time"
       },
       "backup_lag_time": {
-        "name": "Backup Lag Time",
-        "description": "The minimum lag time (in minutes) between heat pump stages and the backup boiler turning on. Range: 1 to 240 minutes."
+        "name": "Backup Lag Time"
       },
       "backup_differential": {
-        "name": "Backup Differential",
-        "description": "The temperature differential at which the backup will come on instantly. This overrides backup lag time settings. Example: With a tank target of 115°F and backup differential of 10°F, backup turns on at 105°F (if all heat pumps are already on). Range: 2°F to 100°F."
+        "name": "Backup Differential"
       },
       "hot_tank_differential": {
-        "name": "Hot Tank Differential",
-        "description": "The temperature differential for the hot tank. For example, a differential of 4°F allows for 2 degrees above and 2 degrees below the target temperature before a demand is present. Range: 2°F to 100°F."
+        "name": "Hot Tank Differential"
       },
       "cold_tank_differential": {
-        "name": "Cold Tank Differential",
-        "description": "The temperature differential for the cold tank. For example, a differential of 4°F allows for 2 degrees above and 2 degrees below the target temperature before a demand is present. Range: 2°F to 100°F."
+        "name": "Cold Tank Differential"
       },
       "backup_only_outdoor_temp": {
-        "name": "Backup Only Outdoor Temp",
-        "description": "The outdoor temperature threshold below which only the backup will run for heating calls. Heat pumps will not run until the outdoor temperature rises above this setting. Range: 2°F to 100°F."
+        "name": "Backup Only Outdoor Temp"
       },
       "number_of_stages": {
-        "name": "Number of Stages",
-        "description": "The number of heat pump stages attached to the control. If Backup is being used, maximum is 3 stages. With 4 stages and Backup enabled, Pump Output 1 will be used for Backup. Range: 1 to 4."
+        "name": "Number of Stages"
       },
       "backup_temp": {
-        "name": "Backup Temperature",
-        "description": "The outdoor temperature threshold below which the backup will be allowed to come on. Range: 2°F to 100°F."
+        "name": "Backup Temperature"
       },
       "weather_shutdown_lag_time": {
-        "name": "Weather Shutdown Lag Time",
-        "description": "The lag time (in hours) for Warm Weather Shutdown (WWSD) or Cold Weather Shutdown (CWSD). This is how long to wait after the outdoor temperature threshold is met before entering shutdown mode. Range: 0 to 240 hours."
+        "name": "Weather Shutdown Lag Time"
       },
       "heat_cool_switch_delay": {
-        "name": "Heat/Cool Switch Delay",
-        "description": "The delay (in seconds) between switching from heat to cool mode and vice versa. This prevents rapid cycling between heating and cooling. Range: 30 to 600 seconds."
+        "name": "Heat/Cool Switch Delay"
       },
       "backup_only_tank_temp": {
-        "name": "Backup Only Tank Temp",
-        "description": "The tank temperature threshold above which only the backup will heat the tank (heat pumps disabled). This should be set lower than the hot tank target temperature. Range: 33°F to 200°F."
+        "name": "Backup Only Tank Temp"
       }
     }
   }
