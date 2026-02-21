@@ -3,7 +3,7 @@
 [![Tests](https://github.com/sslivins/hass_hbxcontrols/actions/workflows/tests.yml/badge.svg)](https://github.com/sslivins/hass_hbxcontrols/actions/workflows/tests.yml)
 [![Hassfest](https://github.com/sslivins/hass_hbxcontrols/actions/workflows/hassfest.yml/badge.svg)](https://github.com/sslivins/hass_hbxcontrols/actions/workflows/hassfest.yml)
 [![HACS Validation](https://github.com/sslivins/hass_hbxcontrols/actions/workflows/hacs_validate.yml/badge.svg)](https://github.com/sslivins/hass_hbxcontrols/actions/workflows/hacs_validate.yml)
-[![GitHub Release](https://img.shields.io/github/v/release/sslivins/hass_hbxcontrols?style=flat-square)](https://github.com/sslivins/hass_hbxcontrols/releases)
+[![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5?style=flat-square)](https://hacs.xyz)
 [![License](https://img.shields.io/github/license/sslivins/hass_hbxcontrols?style=flat-square)](LICENSE)
 
 A custom Home Assistant integration for HBX Controls devices using the [pysensorlinx](https://pypi.org/project/pysensorlinx/) Python library.
