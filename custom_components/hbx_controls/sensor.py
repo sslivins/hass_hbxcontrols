@@ -39,6 +39,13 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(
+        key="target_temperature_tank",
+        name="Tank Target Temperature",
+        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
         key="temperature_outdoor",
         name="Outdoor Temperature", 
         native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,

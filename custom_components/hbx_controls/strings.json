@@ -22,5 +22,26 @@
     "abort": {
       "already_configured": "Device is already configured"
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HBX Controls Options",
+        "description": "Update your SensorLinx credentials or polling interval.",
+        "data": {
+          "username": "Username",
+          "password": "Password",
+          "scan_interval": "Polling interval (seconds)"
+        },
+        "data_description": {
+          "scan_interval": "How often to fetch data from SensorLinx. Default is 300 seconds (5 minutes). Minimum 60, maximum 3600."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to SensorLinx",
+      "auth_failed": "Invalid username or password",
+      "unknown": "Unexpected error occurred"
+    }
   }
 }
