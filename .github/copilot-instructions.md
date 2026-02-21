@@ -75,6 +75,12 @@ When outdoor reset is **off**, min and max are set to the same value (flat setpo
 - Each device is identified in HA by `(DOMAIN, device_id)` identifiers
 - Entity unique IDs follow pattern: `{device_id}_{entity_type}` e.g. `device_123_climate`
 
+## Git Workflow
+
+- **Never commit directly to `main`** — all new features and bug fixes should go into a feature/fix branch
+- Branch naming: `feature/<short-description>` or `fix/<short-description>`
+- Open a PR to merge into `main`
+
 ## Testing
 
 - Framework: `pytest` + `pytest-homeassistant-custom-component`
