@@ -42,3 +42,7 @@ Issues = "https://github.com/sslivins/hass_hbxcontrols/issues"
 [tool.setuptools.packages.find]
 include = ["hbxcontrols*"]
 exclude = ["tests*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

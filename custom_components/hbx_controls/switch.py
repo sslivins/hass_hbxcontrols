@@ -1245,7 +1245,7 @@ class WidePriorityDifferentialSwitch(CoordinatorEntity, SwitchEntity):
             return None
         parameters = device.get("parameters", {})
         value = parameters.get("wide_priority_differential")
-        return bool(value) if value is not None else None
+        return value != "off" and value is not None
 
     @property
     def available(self) -> bool:
