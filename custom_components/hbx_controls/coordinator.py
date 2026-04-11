@@ -295,12 +295,42 @@ class HBXControlsDataUpdateCoordinator(DataUpdateCoordinator):
           except Exception as building_exc:
             _LOGGER.warning("Failed to get devices for building %s: %s", building_id, building_exc)
         
-        _LOGGER.debug("Data update complete: profile=%s, buildings=%d, devices=%d",
-                bool(profile), len(buildings), len(devices))
+        # Get weather data for each building (building-level, not device-level)
+        weather = {}
+        for building in buildings:
+          building_id = building.get("id")
+          _LOGGER.debug("Fetching weather for building: %s", building_id)
+          try:
+            from pysensorlinx.sensorlinx import SensorlinxDevice as _SD
+            # Weather methods need a building_id but not a device_id
+            weather_helper = _SD(self.sensorlinx, building_id, "")
+            building_weather = {}
+            try:
+              current = await weather_helper.get_current_weather(building_info=building)
+              if current:
+                building_weather["current"] = current
+                _LOGGER.debug("Building %s current weather: %s", building_id, current)
+            except Exception as e:
+              _LOGGER.debug("No current weather for building %s: %s", building_id, e)
+            try:
+              forecast = await weather_helper.get_forecast(building_info=building)
+              if forecast:
+                building_weather["forecast"] = forecast
+                _LOGGER.debug("Building %s forecast: %d periods", building_id, len(forecast))
+            except Exception as e:
+              _LOGGER.debug("No forecast for building %s: %s", building_id, e)
+            if building_weather:
+              weather[building_id] = building_weather
+          except Exception as weather_exc:
+            _LOGGER.debug("Failed to get weather for building %s: %s", building_id, weather_exc)
+        
+        _LOGGER.debug("Data update complete: profile=%s, buildings=%d, devices=%d, weather=%d",
+                bool(profile), len(buildings), len(devices), len(weather))
         return {
           "profile": profile,
           "buildings": buildings,
           "devices": devices,
+          "weather": weather,
         }
         
       except ConfigEntryAuthFailed:
