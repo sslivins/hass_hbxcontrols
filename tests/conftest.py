@@ -215,16 +215,86 @@ def make_full_parameters(
 
 def make_coordinator_data(
     devices: dict[str, dict] | None = None,
+    weather: dict[str, dict] | None = _UNSET,
 ) -> dict[str, Any]:
     """Build coordinator.data as returned by _async_update_data."""
     if devices is None:
         devices = {MOCK_DEVICE_ID: make_device()}
 
-    return {
+    data = {
         "profile": {"username": MOCK_USERNAME},
         "buildings": [{"id": MOCK_BUILDING_ID, "name": "Test Building"}],
         "devices": devices,
+        "weather": {},
     }
+
+    if weather is not _UNSET:
+        data["weather"] = weather if weather is not None else {}
+    else:
+        data["weather"] = {MOCK_BUILDING_ID: make_weather_data()}
+
+    return data
+
+
+def make_weather_data(
+    current: dict | None = _UNSET,
+    forecast: list | None = _UNSET,
+) -> dict[str, Any]:
+    """Build weather data for a single building."""
+    import datetime
+
+    data: dict[str, Any] = {}
+
+    if current is not _UNSET:
+        data["current"] = current
+    elif current is None:
+        pass
+    else:
+        temp_mock = MagicMock()
+        temp_mock.value = 72.0
+        feels_mock = MagicMock()
+        feels_mock.value = 70.0
+        data["current"] = {
+            "temp": temp_mock,
+            "feelsLike": feels_mock,
+            "pressure": 1013,
+            "humidity": 55,
+            "wind": 10.5,
+            "windDir": 180,
+            "clouds": 40,
+            "snow": 0,
+            "rain": 0,
+            "description": "scattered clouds",
+            "icon": "03d",
+            "weatherId": 802,
+        }
+
+    if forecast is not _UNSET:
+        data["forecast"] = forecast
+    elif forecast is None:
+        pass
+    else:
+        fc_temp = MagicMock()
+        fc_temp.value = 68.0
+        fc_min = MagicMock()
+        fc_min.value = 60.0
+        fc_max = MagicMock()
+        fc_max.value = 75.0
+        data["forecast"] = [
+            {
+                "time": datetime.datetime(2025, 1, 15, 12, 0, tzinfo=datetime.timezone.utc),
+                "pop": 20,
+                "snow": 0,
+                "temp": fc_temp,
+                "min": fc_min,
+                "max": fc_max,
+                "description": "light rain",
+                "icon": "10d",
+                "weatherId": 500,
+            },
+        ]
+
+    return data
 
 
 # ---------------------------------------------------------------------------
