@@ -45,7 +45,8 @@ async def test_setup_creates_all_sensors(
     # 5 SENSOR_DESCRIPTIONS (tank temp, target temp, outdoor temp, firmware, device type)
     # + 2 heat pump stage runtime sensors
     # + 1 backup runtime sensor
-    assert len(entities) == 8
+    # + 1 DHW state sensor
+    assert len(entities) == 9
 
 
 async def test_setup_no_data(
@@ -74,8 +75,8 @@ async def test_setup_no_heatpump_stages(
     entities = []
     await async_setup_entry(hass, mock_config_entry, lambda e: entities.extend(e))
 
-    # Only the 5 basic SENSOR_DESCRIPTIONS
-    assert len(entities) == 5
+    # Only the 5 basic SENSOR_DESCRIPTIONS + 1 DHW state sensor
+    assert len(entities) == 6
 
 
 # ---------------------------------------------------------------------------

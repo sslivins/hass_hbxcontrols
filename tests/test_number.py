@@ -80,8 +80,8 @@ async def test_setup_creates_number_entities(
     #  rotate cycles, rotate time, backup lag, backup diff,
     #  hot tank diff, cold tank diff, backup only outdoor,
     #  num stages, backup temp, weather shutdown lag, heat/cool switch delay,
-    #  backup only tank temp)
-    assert len(entities) == 24
+    #  backup only tank temp, dhw differential)
+    assert len(entities) == 25
 
 
 async def test_setup_no_data(
