@@ -12,7 +12,7 @@ from custom_components.hbx_controls.weather import (
     async_setup_entry,
 )
 
-from conftest import (
+from .conftest import (
     MOCK_BUILDING_ID,
     make_coordinator_data,
     make_weather_data,
