@@ -6,6 +6,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from homeassistant.core import HomeAssistant
+
+from custom_components.hbx_controls.const import DOMAIN
 from custom_components.hbx_controls.weather import (
     HBXWeather,
     _owm_id_to_ha_condition,
@@ -71,11 +74,14 @@ class TestWeatherSetup:
 
     @pytest.mark.asyncio
     async def test_setup_creates_weather_entity(
-        self, hass, mock_coordinator
+        self, hass, mock_coordinator, mock_config_entry
     ):
         """Test that a weather entity is created for a building with weather data."""
+        hass.data.setdefault(DOMAIN, {})
+        hass.data[DOMAIN][mock_config_entry.entry_id] = mock_coordinator
+
         entities = []
-        await async_setup_entry(hass, MagicMock(), lambda e: entities.extend(e))
+        await async_setup_entry(hass, mock_config_entry, lambda e: entities.extend(e))
 
         weather_entities = [e for e in entities if isinstance(e, HBXWeather)]
         assert len(weather_entities) == 1
@@ -127,94 +133,72 @@ class TestWeatherSetup:
 class TestWeatherProperties:
     """Tests for HBXWeather entity properties."""
 
-    @pytest.mark.asyncio
-    async def test_unique_id(self, hass, mock_coordinator):
-        """Test the unique ID format."""
+    async def _setup_entity(self, hass, mock_coordinator, mock_config_entry):
+        """Helper to set up a weather entity from the mock coordinator."""
+        hass.data.setdefault(DOMAIN, {})
+        hass.data[DOMAIN][mock_config_entry.entry_id] = mock_coordinator
         entities = []
-        await async_setup_entry(hass, MagicMock(), lambda e: entities.extend(e))
+        await async_setup_entry(hass, mock_config_entry, lambda e: entities.extend(e))
+        return entities[0]
 
-        entity = entities[0]
+    @pytest.mark.asyncio
+    async def test_unique_id(self, hass, mock_coordinator, mock_config_entry):
+        """Test the unique ID format."""
+        entity = await self._setup_entity(hass, mock_coordinator, mock_config_entry)
         assert entity.unique_id == f"{MOCK_BUILDING_ID}_weather"
 
     @pytest.mark.asyncio
-    async def test_native_temperature(self, hass, mock_coordinator):
+    async def test_native_temperature(self, hass, mock_coordinator, mock_config_entry):
         """Test current temperature property."""
-        entities = []
-        await async_setup_entry(hass, MagicMock(), lambda e: entities.extend(e))
-
-        entity = entities[0]
+        entity = await self._setup_entity(hass, mock_coordinator, mock_config_entry)
         assert entity.native_temperature == 72.0
 
     @pytest.mark.asyncio
-    async def test_native_apparent_temperature(self, hass, mock_coordinator):
+    async def test_native_apparent_temperature(self, hass, mock_coordinator, mock_config_entry):
         """Test feels-like temperature property."""
-        entities = []
-        await async_setup_entry(hass, MagicMock(), lambda e: entities.extend(e))
-
-        entity = entities[0]
+        entity = await self._setup_entity(hass, mock_coordinator, mock_config_entry)
         assert entity.native_apparent_temperature == 70.0
 
     @pytest.mark.asyncio
-    async def test_humidity(self, hass, mock_coordinator):
+    async def test_humidity(self, hass, mock_coordinator, mock_config_entry):
         """Test humidity property."""
-        entities = []
-        await async_setup_entry(hass, MagicMock(), lambda e: entities.extend(e))
-
-        entity = entities[0]
+        entity = await self._setup_entity(hass, mock_coordinator, mock_config_entry)
         assert entity.humidity == 55
 
     @pytest.mark.asyncio
-    async def test_native_pressure(self, hass, mock_coordinator):
+    async def test_native_pressure(self, hass, mock_coordinator, mock_config_entry):
         """Test atmospheric pressure property."""
-        entities = []
-        await async_setup_entry(hass, MagicMock(), lambda e: entities.extend(e))
-
-        entity = entities[0]
+        entity = await self._setup_entity(hass, mock_coordinator, mock_config_entry)
         assert entity.native_pressure == 1013
 
     @pytest.mark.asyncio
-    async def test_native_wind_speed(self, hass, mock_coordinator):
+    async def test_native_wind_speed(self, hass, mock_coordinator, mock_config_entry):
         """Test wind speed property."""
-        entities = []
-        await async_setup_entry(hass, MagicMock(), lambda e: entities.extend(e))
-
-        entity = entities[0]
+        entity = await self._setup_entity(hass, mock_coordinator, mock_config_entry)
         assert entity.native_wind_speed == 10.5
 
     @pytest.mark.asyncio
-    async def test_wind_bearing(self, hass, mock_coordinator):
+    async def test_wind_bearing(self, hass, mock_coordinator, mock_config_entry):
         """Test wind bearing property."""
-        entities = []
-        await async_setup_entry(hass, MagicMock(), lambda e: entities.extend(e))
-
-        entity = entities[0]
+        entity = await self._setup_entity(hass, mock_coordinator, mock_config_entry)
         assert entity.wind_bearing == 180
 
     @pytest.mark.asyncio
-    async def test_condition(self, hass, mock_coordinator):
+    async def test_condition(self, hass, mock_coordinator, mock_config_entry):
         """Test weather condition mapping (802 → cloudy)."""
-        entities = []
-        await async_setup_entry(hass, MagicMock(), lambda e: entities.extend(e))
-
-        entity = entities[0]
+        entity = await self._setup_entity(hass, mock_coordinator, mock_config_entry)
         assert entity.condition == "cloudy"
 
     @pytest.mark.asyncio
-    async def test_available_with_data(self, hass, mock_coordinator):
+    async def test_available_with_data(self, hass, mock_coordinator, mock_config_entry):
         """Test entity is available when weather data is present."""
-        entities = []
-        await async_setup_entry(hass, MagicMock(), lambda e: entities.extend(e))
-
-        entity = entities[0]
+        entity = await self._setup_entity(hass, mock_coordinator, mock_config_entry)
         assert entity.available is True
 
     @pytest.mark.asyncio
-    async def test_device_info(self, hass, mock_coordinator):
+    async def test_device_info(self, hass, mock_coordinator, mock_config_entry):
         """Test device info references the building."""
-        entities = []
-        await async_setup_entry(hass, MagicMock(), lambda e: entities.extend(e))
-
-        entity = entities[0]
+        entity = await self._setup_entity(hass, mock_coordinator, mock_config_entry)
         info = entity.device_info
         assert (DOMAIN, MOCK_BUILDING_ID) in info["identifiers"]
         assert info["name"] == "Test Building"
@@ -230,10 +214,13 @@ class TestWeatherForecast:
     """Tests for weather forecast."""
 
     @pytest.mark.asyncio
-    async def test_build_forecast(self, hass, mock_coordinator):
+    async def test_build_forecast(self, hass, mock_coordinator, mock_config_entry):
         """Test forecast list is built correctly."""
+        hass.data.setdefault(DOMAIN, {})
+        hass.data[DOMAIN][mock_config_entry.entry_id] = mock_coordinator
+
         entities = []
-        await async_setup_entry(hass, MagicMock(), lambda e: entities.extend(e))
+        await async_setup_entry(hass, mock_config_entry, lambda e: entities.extend(e))
 
         entity = entities[0]
         forecast = entity._build_forecast()

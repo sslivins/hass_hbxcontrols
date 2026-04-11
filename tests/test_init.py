@@ -60,7 +60,8 @@ async def test_platforms_list():
     assert Platform.NUMBER in PLATFORMS
     assert Platform.SWITCH in PLATFORMS
     assert Platform.SELECT in PLATFORMS
-    assert len(PLATFORMS) == 6
+    assert Platform.WEATHER in PLATFORMS
+    assert len(PLATFORMS) == 7
 
 
 # ---------------------------------------------------------------------------
