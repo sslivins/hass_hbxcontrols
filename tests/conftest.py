@@ -129,6 +129,10 @@ def make_full_parameters(
     two_stage_heat_pump: bool = False,
     heat_cool_switch_delay: int = 60,
     backup_only_tank_temp: Any = "off",
+    dhw_enabled: bool | object = _UNSET,
+    dhw_target_temp: Any | object = _UNSET,
+    dhw_differential: Any | object = _UNSET,
+    dhw_state: dict | None | object = _UNSET,
 ) -> dict[str, Any]:
     """Build a complete set of device parameters for testing."""
     if heatpump_stages is _UNSET:
@@ -140,7 +144,25 @@ def make_full_parameters(
     if backup_state is _UNSET:
         backup_state = {"title": "Backup", "activated": False, "runTime": "10:00:00"}
 
-    return {
+    if dhw_enabled is _UNSET:
+        dhw_enabled = True
+
+    if dhw_target_temp is _UNSET:
+        from unittest.mock import MagicMock
+        dhw_target_temp = MagicMock()
+        dhw_target_temp.value = 120.0
+
+    if dhw_differential is _UNSET:
+        from unittest.mock import MagicMock as _MM
+        dhw_differential = _MM()
+        dhw_differential.value = 10.0
+        dhw_differential.to_fahrenheit = lambda: 10.0
+        dhw_differential.to_celsius = lambda: 5.6
+
+    if dhw_state is _UNSET:
+        dhw_state = {"activated": False, "enabled": True, "title": "DHW"}
+
+    params = {
         "temperature_tank": temperature_tank,
         "target_temperature_tank": target_temperature_tank,
         "temperature_outdoor": temperature_outdoor,
@@ -177,6 +199,18 @@ def make_full_parameters(
         "heat_cool_switch_delay": heat_cool_switch_delay,
         "backup_only_tank_temp": backup_only_tank_temp,
     }
+
+    # DHW parameters — only included when not None
+    if dhw_enabled is not None:
+        params["dhw_enabled"] = dhw_enabled
+    if dhw_target_temp is not None:
+        params["dhw_target_temp"] = dhw_target_temp
+    if dhw_differential is not None:
+        params["dhw_differential"] = dhw_differential
+    if dhw_state is not None:
+        params["dhw_state"] = dhw_state
+
+    return params
 
 
 def make_coordinator_data(
