@@ -305,6 +305,17 @@ async def async_setup_entry(
                         building_id,
                     )
                 )
+
+            # DHW Differential
+            if "dhw_differential" in device_parameters:
+                entities.append(
+                    DHWDifferential(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
     
     _LOGGER.debug("Adding %d number entities", len(entities))
     async_add_entities(entities)
@@ -2406,4 +2417,110 @@ class BackupOnlyTankTemp(CoordinatorEntity, NumberEntity):
         )
         temp = Temperature(value, "F")
         await device_helper.set_backup_only_tank_temp(temp)
+        await self.coordinator.async_request_refresh()
+
+
+class DHWDifferential(CoordinatorEntity, NumberEntity):
+    """DHW (Domestic Hot Water) Differential control.
+
+    Sets the desired DHW differential. For example, a differential of 4°F
+    will allow for 2 degrees above and/or 2 degrees below the desired
+    DHW temperature before a demand is present.
+    """
+
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:thermometer-water"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: HBXControlsDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+
+        self._attr_unique_id = f"{device_id}_dhw_differential"
+        self._attr_name = f"{device.get('name', device_id)} DHW Differential"
+
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "HBX Controls",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_step(self) -> float:
+        """Return step value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 0.1
+        return 1
+
+    @property
+    def native_unit_of_measurement(self) -> str:
+        """Return the unit of measurement based on HA config."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return UnitOfTemperature.CELSIUS
+        return UnitOfTemperature.FAHRENHEIT
+
+    @property
+    def native_min_value(self) -> float:
+        """Return minimum value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 1.0  # 2°F ≈ 1.1°C, rounded to 1.0
+        return 2
+
+    @property
+    def native_max_value(self) -> float:
+        """Return maximum value based on unit system."""
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            return 55.5  # 100°F ≈ 55.6°C, rounded to 55.5
+        return 100
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        parameters = device.get("parameters", {})
+        value = parameters.get("dhw_differential")
+        if isinstance(value, TemperatureDelta):
+            if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+                return round(value.to_celsius() * 2) / 2
+            return value.to_fahrenheit()
+        return value
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+            and "dhw_differential" in self.coordinator.data["devices"][self._device_id].get("parameters", {})
+        )
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the DHW differential value."""
+        device_helper = SensorlinxDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        if self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS:
+            delta = TemperatureDelta(value, "C")
+        else:
+            delta = TemperatureDelta(value, "F")
+        await device_helper.set_dhw_differential(delta)
         await self.coordinator.async_request_refresh()

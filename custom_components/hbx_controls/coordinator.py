@@ -283,6 +283,30 @@ class HBXControlsDataUpdateCoordinator(DataUpdateCoordinator):
                   except:
                     pass
                   
+                  # DHW (Domestic Hot Water)
+                  try:
+                    parameters["dhw_enabled"] = await device_helper.get_dhw_enabled(device_info=device)
+                  except:
+                    pass
+                  
+                  try:
+                    parameters["dhw_target_temp"] = await device_helper.get_dhw_target_temp(device_info=device)
+                  except:
+                    pass
+                  
+                  try:
+                    parameters["dhw_differential"] = await device_helper.get_dhw_differential(device_info=device)
+                  except:
+                    pass
+                  
+                  try:
+                    dhw_state = await device_helper.get_dhw_state(device_info=device)
+                    if dhw_state:
+                      parameters["dhw_state"] = dhw_state
+                      _LOGGER.debug("Device %s dhw_state: %s", device_id, dhw_state)
+                  except Exception as e:
+                    _LOGGER.debug("Failed to get dhw_state for device %s: %s", device_id, e)
+                  
                 except Exception as param_exc:
                   _LOGGER.warning("Failed to extract parameters for device %s: %s", device_id, param_exc)
                 

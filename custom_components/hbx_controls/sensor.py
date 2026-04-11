@@ -137,6 +137,18 @@ async def async_setup_entry(
                         backup_title,
                     )
                 )
+            
+            # Create DHW state sensor
+            dhw_state = device_parameters.get("dhw_state")
+            if dhw_state:
+                _LOGGER.debug("Creating DHW state sensor for device %s", device_id)
+                entities.append(
+                    DHWStateSensor(
+                        coordinator,
+                        device_id,
+                        device,
+                    )
+                )
     else:
         _LOGGER.debug("No coordinator data or devices found")
     
@@ -338,3 +350,68 @@ class BackupRuntimeSensor(CoordinatorEntity, SensorEntity):
             
         parameters = device.get("parameters", {})
         return parameters.get("backup_state") is not None
+
+
+class DHWStateSensor(CoordinatorEntity, SensorEntity):
+    """Implementation of a DHW (Domestic Hot Water) state sensor."""
+
+    _attr_icon = "mdi:water-boiler"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        coordinator: HBXControlsDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+    ) -> None:
+        """Initialize the DHW state sensor."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+
+        self._attr_unique_id = f"{device_id}_dhw_state"
+        self._attr_name = f"{device.get('name', device_id)} DHW State"
+
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "HBX Controls",
+            "model": device.get("type", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the DHW state as a string."""
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+
+        parameters = device.get("parameters", {})
+        dhw_state = parameters.get("dhw_state")
+
+        if not dhw_state:
+            return None
+
+        return "Heating" if dhw_state.get("activated") else "Idle"
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        if not (
+            self.coordinator.last_update_success
+            and self.coordinator.data is not None
+            and "devices" in self.coordinator.data
+            and self._device_id in self.coordinator.data["devices"]
+        ):
+            return False
+
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return False
+
+        parameters = device.get("parameters", {})
+        return parameters.get("dhw_state") is not None
