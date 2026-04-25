@@ -10,6 +10,10 @@ from pysensorlinx import (
     LoginError,
     LoginTimeoutError,
     Sensorlinx,
+    DEVICE_TYPE_ECO,
+    DEVICE_TYPE_THM,
+    DEVICE_TYPE_ZON,
+    device_for,
 )
 
 from homeassistant.config_entries import ConfigEntry
@@ -23,6 +27,234 @@ from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
+async def _extract_eco_parameters(device_helper, device: dict) -> dict[str, Any]:
+    """
+    Extract the historical ECO-shaped parameter set.
+
+    All calls are wrapped in try/except so a single missing field never
+    breaks the whole update. Behaviour preserved verbatim from prior
+    versions of the coordinator to keep existing ECO installs identical.
+    """
+    parameters: dict[str, Any] = {}
+
+    # Temperature data
+    try:
+        temps = await device_helper.get_temperatures(device_info=device)
+        if temps:
+            for temp_name, temp_data in temps.items():
+                if temp_data.get("actual"):
+                    parameters[
+                        f"temperature_{temp_name.lower().replace(' ', '_')}"
+                    ] = temp_data["actual"].value
+                if temp_data.get("target"):
+                    parameters[
+                        f"target_temperature_{temp_name.lower().replace(' ', '_')}"
+                    ] = temp_data["target"].value
+    except Exception:  # noqa: BLE001
+        pass
+
+    async def _grab(key: str, fn, *, default_log: bool = False, transform=None):
+        try:
+            value = await fn(device_info=device)
+            if transform is not None:
+                value = transform(value)
+            if value is not None or not default_log:
+                parameters[key] = value
+        except Exception as exc:  # noqa: BLE001
+            if default_log:
+                _LOGGER.debug("Failed to get %s: %s", key, exc)
+
+    await _grab("permanent_heat_demand", device_helper.get_permanent_heat_demand)
+    await _grab("permanent_cool_demand", device_helper.get_permanent_cool_demand)
+    try:
+        hvac_mode = await device_helper.get_hvac_mode_priority(device_info=device)
+        mode_map = {0: "heat", 1: "cool", 2: "auto"}
+        parameters["hvac_mode"] = mode_map.get(hvac_mode, "auto")
+    except Exception:  # noqa: BLE001
+        pass
+    await _grab("hot_tank_min_temp", device_helper.get_hot_tank_min_temp)
+    await _grab("hot_tank_max_temp", device_helper.get_hot_tank_max_temp)
+    await _grab("hot_tank_outdoor_reset", device_helper.get_hot_tank_outdoor_reset)
+    await _grab("cold_tank_min_temp", device_helper.get_cold_tank_min_temp)
+    await _grab("cold_tank_max_temp", device_helper.get_cold_tank_max_temp)
+    await _grab("cold_tank_outdoor_reset", device_helper.get_cold_tank_outdoor_reset)
+    await _grab("warm_weather_shutdown", device_helper.get_warm_weather_shutdown)
+    await _grab("cold_weather_shutdown", device_helper.get_cold_weather_shutdown)
+
+    try:
+        heatpump_stages = await device_helper.get_heatpump_stages_state(device_info=device)
+        if heatpump_stages:
+            parameters["heatpump_stages"] = heatpump_stages
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("Failed to get heatpump_stages: %s", exc)
+
+    try:
+        backup_state = await device_helper.get_backup_state(device_info=device)
+        if backup_state:
+            parameters["backup_state"] = backup_state
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("Failed to get backup_state: %s", exc)
+
+    await _grab("stage_on_lag_time", device_helper.get_stage_on_lag_time)
+    await _grab("stage_off_lag_time", device_helper.get_stage_off_lag_time)
+    await _grab("rotate_cycles", device_helper.get_rotate_cycles)
+    await _grab("rotate_time", device_helper.get_rotate_time)
+    await _grab("off_staging", device_helper.get_off_staging)
+    await _grab("backup_lag_time", device_helper.get_backup_lag_time)
+    await _grab("backup_differential", device_helper.get_backup_differential)
+    await _grab("hot_tank_differential", device_helper.get_hot_tank_differential)
+    await _grab("cold_tank_differential", device_helper.get_cold_tank_differential)
+    await _grab("backup_only_outdoor_temp", device_helper.get_backup_only_outdoor_temp)
+    await _grab("number_of_stages", device_helper.get_number_of_stages)
+    await _grab("backup_temp", device_helper.get_backup_temp)
+    await _grab("wide_priority_differential", device_helper.get_wide_priority_differential)
+    await _grab("weather_shutdown_lag_time", device_helper.get_weather_shutdown_lag_time)
+    await _grab("two_stage_heat_pump", device_helper.get_two_stage_heat_pump)
+    await _grab("heat_cool_switch_delay", device_helper.get_heat_cool_switch_delay)
+    await _grab("backup_only_tank_temp", device_helper.get_backup_only_tank_temp)
+    await _grab("dhw_enabled", device_helper.get_dhw_enabled)
+    await _grab("dhw_target_temp", device_helper.get_dhw_target_temp)
+    await _grab("dhw_differential", device_helper.get_dhw_differential)
+
+    try:
+        dhw_state = await device_helper.get_dhw_state(device_info=device)
+        if dhw_state:
+            parameters["dhw_state"] = dhw_state
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("Failed to get dhw_state: %s", exc)
+
+    return parameters
+
+
+async def _extract_thm_parameters(device_helper, device: dict) -> dict[str, Any]:
+    """Extract THM-specific parameters into a flat dict."""
+    parameters: dict[str, Any] = {}
+
+    async def _grab(key: str, coro):
+        try:
+            value = await coro
+            if value is not None:
+                parameters[key] = value
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Failed to get %s: %s", key, exc)
+
+    # Temperatures arrive as Temperature objects; flatten to °F floats so
+    # they slot into the existing sensor descriptions in sensor.py.
+    try:
+        room = await device_helper.get_room_temperature(device)
+        if room is not None:
+            parameters["temperature_room"] = room.value
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("THM room temp: %s", exc)
+
+    try:
+        floor = await device_helper.get_floor_temperature(device)
+        if floor is not None:
+            parameters["temperature_floor"] = floor.value
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("THM floor temp: %s", exc)
+
+    try:
+        target = await device_helper.get_target_temperature(device)
+        if target is not None:
+            parameters["target_temperature_room"] = target.value
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("THM target temp: %s", exc)
+
+    await _grab("humidity", device_helper.get_humidity(device))
+    await _grab("hvac_mode", device_helper.get_hvac_mode(device))
+    await _grab("fan_mode", device_helper.get_fan_mode(device))
+    await _grab("thm_mode", device_helper.get_thm_mode(device))
+    await _grab("target_type", device_helper.get_target_type(device))
+    try:
+        parameters["is_off"] = bool(await device_helper.is_off(device))
+        parameters["is_heating"] = bool(await device_helper.is_heating(device))
+        parameters["is_cooling"] = bool(await device_helper.is_cooling(device))
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("THM activity flags: %s", exc)
+
+    try:
+        away = await device_helper.get_away_mode(device)
+        if isinstance(away, dict):
+            parameters["away_mode_activated"] = bool(away.get("activated"))
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("THM away mode: %s", exc)
+
+    return parameters
+
+
+async def _extract_zon_parameters(device_helper, device: dict) -> dict[str, Any]:
+    """Extract ZON-specific parameters and the linked THM sync codes."""
+    parameters: dict[str, Any] = {}
+
+    async def _grab(key: str, coro):
+        try:
+            value = await coro
+            if value is not None:
+                parameters[key] = value
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Failed to get %s: %s", key, exc)
+
+    await _grab("relays", device_helper.get_relays(device))
+    await _grab("relay_types", device_helper.get_relay_types(device))
+    await _grab("zone_id", device_helper.get_zone_id(device))
+    try:
+        codes = await device_helper.get_thermostat_sync_codes(device)
+        # Stored under a stable key the next platform PR can iterate on.
+        parameters["thermostat_sync_codes"] = list(codes or [])
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("ZON thermostat sync codes: %s", exc)
+
+    try:
+        btn = await device_helper.get_app_button(device)
+        if isinstance(btn, dict):
+            parameters["app_button_enabled"] = bool(btn.get("enabled"))
+            parameters["app_button_activated"] = bool(btn.get("activated"))
+            if btn.get("text"):
+                parameters["app_button_text"] = btn["text"]
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("ZON app button: %s", exc)
+
+    try:
+        aux = await device_helper.get_aux_setpoint(device)
+        if isinstance(aux, dict):
+            if aux.get("target") is not None:
+                parameters["aux_setpoint_target"] = aux["target"]
+            mode = aux.get("mode") or {}
+            if isinstance(mode, dict) and mode.get("title"):
+                parameters["aux_setpoint_mode"] = mode["title"]
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("ZON aux setpoint: %s", exc)
+
+    return parameters
+
+
+def _wire_via_device_links(devices: dict[str, dict[str, Any]]) -> None:
+    """
+    Walk the device map and stamp ``via_device_id`` onto each child THM.
+
+    Reads the ``thermostat_sync_codes`` list off every ZON device and
+    points back at it from each matching THM device, so HA's device
+    registry nests child thermostats under their parent zone controller.
+    """
+    parent_for_thm: dict[str, str] = {}
+    for zon_id, zon_device in devices.items():
+        dtype = (zon_device.get("deviceType") or "").upper()
+        if dtype != DEVICE_TYPE_ZON:
+            continue
+        parameters = zon_device.get("parameters") or {}
+        for thm_sync in parameters.get("thermostat_sync_codes", []) or []:
+            parent_for_thm[str(thm_sync)] = zon_id
+
+    for thm_id, thm_device in devices.items():
+        dtype = (thm_device.get("deviceType") or "").upper()
+        if dtype != DEVICE_TYPE_THM:
+            continue
+        parent = parent_for_thm.get(str(thm_id))
+        if parent is not None:
+            thm_device["via_device_id"] = parent
+
+
 class HBXControlsDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching data from the SensorLinx API."""
 
@@ -30,9 +262,9 @@ class HBXControlsDataUpdateCoordinator(DataUpdateCoordinator):
         """Initialize."""
         self.sensorlinx = Sensorlinx()
         self.entry = entry
-        
+
         scan_interval = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-        
+
         super().__init__(
             hass,
             _LOGGER,
@@ -41,353 +273,140 @@ class HBXControlsDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
     async def _async_update_data(self) -> dict[str, Any]:
-      """Update data via library."""
-      _LOGGER.debug("Starting HBX Controls data update")
-      try:
-        # Lazy login: pysensorlinx>=0.2.3 owns session lifecycle and is
-        # idempotent when already authenticated. Skipping the call when
-        # we already hold a valid session avoids a pointless POST every
-        # poll cycle.
-        if not self.sensorlinx.is_logged_in:
-          _LOGGER.debug("Logging in as user: %s", self.entry.data[CONF_USERNAME])
-          await self.sensorlinx.login(
-            self.entry.data[CONF_USERNAME],
-            self.entry.data[CONF_PASSWORD]
-          )
-        
-        # Get user profile
-        _LOGGER.debug("Fetching user profile")
-        profile = await self.sensorlinx.get_profile()
-        if not profile:
-          _LOGGER.debug("No profile returned from HBX Controls")
-          raise ConfigEntryAuthFailed("Failed to get user profile")
-        _LOGGER.debug("User profile fetched: %s", profile)
-        
-        # Get buildings
-        _LOGGER.debug("Fetching buildings")
-        buildings = await self.sensorlinx.get_buildings()
-        if not buildings:
-          _LOGGER.debug("No buildings returned from HBX Controls")
-          buildings = []
-        else:
-          _LOGGER.debug("Fetched %d buildings", len(buildings))
-        
-        # Get devices for each building
-        devices = {}
-        for building in buildings:
-          building_id = building.get("id")
-          _LOGGER.debug("Fetching devices for building: %s", building_id)
-          try:
-            building_devices = await self.sensorlinx.get_devices(building_id)
-            if building_devices:
-              _LOGGER.debug("Fetched %d devices for building %s", len(building_devices), building_id)
-              for device in building_devices:
-                device_id = device.get("syncCode") or device.get("id")
-                _LOGGER.debug("Processing device: %s (ID: %s)", device.get("name"), device_id)
-                
-                # Create a SensorlinxDevice helper to extract parameters
-                from pysensorlinx.sensorlinx import SensorlinxDevice
-                device_helper = SensorlinxDevice(self.sensorlinx, building_id, device_id)
-                
-                # Extract parameters using the library methods
-                parameters = {}
-                try:
-                  # Temperature data
-                  temps = await device_helper.get_temperatures(device_info=device)
-                  if temps:
-                    for temp_name, temp_data in temps.items():
-                      if temp_data.get("actual"):
-                        parameters[f"temperature_{temp_name.lower().replace(' ', '_')}"] = temp_data["actual"].value
-                      if temp_data.get("target"):
-                        parameters[f"target_temperature_{temp_name.lower().replace(' ', '_')}"] = temp_data["target"].value
-                  
-                  # HVAC and demand states
-                  try:
-                    parameters["permanent_heat_demand"] = await device_helper.get_permanent_heat_demand(device_info=device)
-                  except:
-                    pass
-                  
-                  try:
-                    parameters["permanent_cool_demand"] = await device_helper.get_permanent_cool_demand(device_info=device)
-                  except:
-                    pass
-                    
-                  try:
-                    hvac_mode = await device_helper.get_hvac_mode_priority(device_info=device)
-                    # Convert numeric to string
-                    mode_map = {0: "heat", 1: "cool", 2: "auto"}
-                    parameters["hvac_mode"] = mode_map.get(hvac_mode, "auto")
-                  except:
-                    pass
-                  
-                  # Tank temperatures
-                  try:
-                    parameters["hot_tank_min_temp"] = await device_helper.get_hot_tank_min_temp(device_info=device)
-                  except:
-                    pass
-                    
-                  try:
-                    parameters["hot_tank_max_temp"] = await device_helper.get_hot_tank_max_temp(device_info=device)
-                  except:
-                    pass
-                  
-                  try:
-                    parameters["hot_tank_outdoor_reset"] = await device_helper.get_hot_tank_outdoor_reset(device_info=device)
-                  except:
-                    pass
-                    
-                  try:
-                    parameters["cold_tank_min_temp"] = await device_helper.get_cold_tank_min_temp(device_info=device)
-                  except:
-                    pass
-                    
-                  try:
-                    parameters["cold_tank_max_temp"] = await device_helper.get_cold_tank_max_temp(device_info=device)
-                  except:
-                    pass
-                  
-                  try:
-                    parameters["cold_tank_outdoor_reset"] = await device_helper.get_cold_tank_outdoor_reset(device_info=device)
-                  except:
-                    pass
-                  
-                  # Device info
-                  try:
-                    parameters["firmware_version"] = await device_helper.get_firmware_version(device_info=device)
-                  except:
-                    pass
-                    
-                  try:
-                    parameters["device_type"] = await device_helper.get_device_type(device_info=device)
-                  except:
-                    pass
-                  
-                  # Weather shutdown states
-                  try:
-                    parameters["warm_weather_shutdown"] = await device_helper.get_warm_weather_shutdown(device_info=device)
-                  except:
-                    pass
-                    
-                  try:
-                    parameters["cold_weather_shutdown"] = await device_helper.get_cold_weather_shutdown(device_info=device)
-                  except:
-                    pass
-                  
-                  # Heat pump stages
-                  try:
-                    heatpump_stages = await device_helper.get_heatpump_stages_state(device_info=device)
-                    if heatpump_stages:
-                      parameters["heatpump_stages"] = heatpump_stages
-                      _LOGGER.debug("Device %s heatpump_stages: %s", device_id, heatpump_stages)
-                  except Exception as e:
-                    _LOGGER.debug("Failed to get heatpump_stages for device %s: %s", device_id, e)
-                  
-                  # Backup heater state
-                  try:
-                    backup_state = await device_helper.get_backup_state(device_info=device)
-                    if backup_state:
-                      parameters["backup_state"] = backup_state
-                      _LOGGER.debug("Device %s backup_state: %s", device_id, backup_state)
-                  except Exception as e:
-                    _LOGGER.debug("Failed to get backup_state for device %s: %s", device_id, e)
-                  
-                  # Stage lag times
-                  try:
-                    parameters["stage_on_lag_time"] = await device_helper.get_stage_on_lag_time(device_info=device)
-                  except:
-                    pass
-                  
-                  try:
-                    parameters["stage_off_lag_time"] = await device_helper.get_stage_off_lag_time(device_info=device)
-                  except:
-                    pass
-                  
-                  # Heat pump rotation settings
-                  try:
-                    parameters["rotate_cycles"] = await device_helper.get_rotate_cycles(device_info=device)
-                  except:
-                    pass
-                  
-                  try:
-                    parameters["rotate_time"] = await device_helper.get_rotate_time(device_info=device)
-                  except:
-                    pass
-                  
-                  # Off staging setting
-                  try:
-                    parameters["off_staging"] = await device_helper.get_off_staging(device_info=device)
-                  except:
-                    pass
-                  
-                  # Backup lag time
-                  try:
-                    parameters["backup_lag_time"] = await device_helper.get_backup_lag_time(device_info=device)
-                  except:
-                    pass
-                  
-                  # Backup differential
-                  try:
-                    parameters["backup_differential"] = await device_helper.get_backup_differential(device_info=device)
-                  except:
-                    pass
-                  
-                  # Hot tank differential
-                  try:
-                    parameters["hot_tank_differential"] = await device_helper.get_hot_tank_differential(device_info=device)
-                    _LOGGER.debug("Device %s hot_tank_differential: %s (type: %s)", device_id, parameters["hot_tank_differential"], type(parameters["hot_tank_differential"]))
-                  except Exception as e:
-                    _LOGGER.warning("Failed to get hot_tank_differential for device %s: %s", device_id, e)
-                  
-                  # Cold tank differential
-                  try:
-                    parameters["cold_tank_differential"] = await device_helper.get_cold_tank_differential(device_info=device)
-                  except:
-                    pass
-                  
-                  # Backup only outdoor temp
-                  try:
-                    parameters["backup_only_outdoor_temp"] = await device_helper.get_backup_only_outdoor_temp(device_info=device)
-                  except:
-                    pass
-                  
-                  # Number of heat pump stages
-                  try:
-                    parameters["number_of_stages"] = await device_helper.get_number_of_stages(device_info=device)
-                  except:
-                    pass
-                  
-                  # Backup temperature
-                  try:
-                    parameters["backup_temp"] = await device_helper.get_backup_temp(device_info=device)
-                  except:
-                    pass
-                  
-                  # Wide priority differential
-                  try:
-                    parameters["wide_priority_differential"] = await device_helper.get_wide_priority_differential(device_info=device)
-                  except:
-                    pass
-                  
-                  # Weather shutdown lag time
-                  try:
-                    parameters["weather_shutdown_lag_time"] = await device_helper.get_weather_shutdown_lag_time(device_info=device)
-                  except:
-                    pass
-                  
-                  # Two stage heat pump
-                  try:
-                    parameters["two_stage_heat_pump"] = await device_helper.get_two_stage_heat_pump(device_info=device)
-                  except:
-                    pass
-                  
-                  # Heat/cool switch delay
-                  try:
-                    parameters["heat_cool_switch_delay"] = await device_helper.get_heat_cool_switch_delay(device_info=device)
-                  except:
-                    pass
-                  
-                  # Backup only tank temp
-                  try:
-                    parameters["backup_only_tank_temp"] = await device_helper.get_backup_only_tank_temp(device_info=device)
-                  except:
-                    pass
-                  
-                  # DHW (Domestic Hot Water)
-                  try:
-                    parameters["dhw_enabled"] = await device_helper.get_dhw_enabled(device_info=device)
-                  except:
-                    pass
-                  
-                  try:
-                    parameters["dhw_target_temp"] = await device_helper.get_dhw_target_temp(device_info=device)
-                  except:
-                    pass
-                  
-                  try:
-                    parameters["dhw_differential"] = await device_helper.get_dhw_differential(device_info=device)
-                  except:
-                    pass
-                  
-                  try:
-                    dhw_state = await device_helper.get_dhw_state(device_info=device)
-                    if dhw_state:
-                      parameters["dhw_state"] = dhw_state
-                      _LOGGER.debug("Device %s dhw_state: %s", device_id, dhw_state)
-                  except Exception as e:
-                    _LOGGER.debug("Failed to get dhw_state for device %s: %s", device_id, e)
-                  
-                except Exception as param_exc:
-                  _LOGGER.warning("Failed to extract parameters for device %s: %s", device_id, param_exc)
-                
-                device["parameters"] = parameters
-                device["building_id"] = building_id  # Store building_id for API calls
-                _LOGGER.debug("Device %s parameters: %s", device_id, parameters)
-                devices[device_id] = device
-            else:
-              _LOGGER.debug("No devices found for building %s", building_id)
-          except Exception as building_exc:
-            _LOGGER.warning("Failed to get devices for building %s: %s", building_id, building_exc)
-        
-        # Get weather data for each building (building-level, not device-level)
-        weather = {}
-        for building in buildings:
-          building_id = building.get("id")
-          _LOGGER.debug("Fetching weather for building: %s", building_id)
-          try:
-            from pysensorlinx.sensorlinx import SensorlinxDevice as _SD
-            # Weather methods need a building_id but not a device_id
-            weather_helper = _SD(self.sensorlinx, building_id, "")
-            building_weather = {}
-            try:
-              current = await weather_helper.get_current_weather(building_info=building)
-              if current:
-                building_weather["current"] = current
-                _LOGGER.debug("Building %s current weather: %s", building_id, current)
-            except Exception as e:
-              _LOGGER.debug("No current weather for building %s: %s", building_id, e)
-            try:
-              forecast = await weather_helper.get_forecast(building_info=building)
-              if forecast:
-                building_weather["forecast"] = forecast
-                _LOGGER.debug("Building %s forecast: %d periods", building_id, len(forecast))
-            except Exception as e:
-              _LOGGER.debug("No forecast for building %s: %s", building_id, e)
-            if building_weather:
-              weather[building_id] = building_weather
-          except Exception as weather_exc:
-            _LOGGER.debug("Failed to get weather for building %s: %s", building_id, weather_exc)
-        
-        _LOGGER.debug("Data update complete: profile=%s, buildings=%d, devices=%d, weather=%d",
-                bool(profile), len(buildings), len(devices), len(weather))
-        return {
-          "profile": profile,
-          "buildings": buildings,
-          "devices": devices,
-          "weather": weather,
-        }
-        
-      except ConfigEntryAuthFailed:
-        _LOGGER.debug("Authentication failed during data update")
-        raise
-      except InvalidCredentialsError as exc:
-        # Bad password / revoked account: surface to HA so reauth flow
-        # fires. The library has already cleaned up its session.
-        _LOGGER.warning("Invalid credentials for SensorLinx: %s", exc)
-        raise ConfigEntryAuthFailed(str(exc)) from exc
-      except (LoginTimeoutError, LoginError) as exc:
-        # Transient login failure (timeout, network, server 5xx). The
-        # library leaves itself in a not-logged-in state, so the next
-        # poll will attempt a fresh login. Defensively close to make
-        # sure no half-init session lingers.
-        _LOGGER.warning("Transient SensorLinx login failure: %s", exc)
+        """Update data via library."""
+        _LOGGER.debug("Starting HBX Controls data update")
         try:
-          await self.sensorlinx.close()
-        except Exception:  # pylint: disable=broad-except
-          pass
-        raise UpdateFailed(f"SensorLinx login failed: {exc}") from exc
-      except Exception as exc:
-        _LOGGER.error("Error communicating with SensorLinx API: %s", exc)
-        raise UpdateFailed(f"Error communicating with API: {exc}") from exc
+            # Lazy login: pysensorlinx>=0.2.3 owns session lifecycle and is
+            # idempotent when already authenticated. Skipping the call when
+            # we already hold a valid session avoids a pointless POST every
+            # poll cycle.
+            if not self.sensorlinx.is_logged_in:
+                _LOGGER.debug("Logging in as user: %s", self.entry.data[CONF_USERNAME])
+                await self.sensorlinx.login(
+                    self.entry.data[CONF_USERNAME],
+                    self.entry.data[CONF_PASSWORD],
+                )
+
+            _LOGGER.debug("Fetching user profile")
+            profile = await self.sensorlinx.get_profile()
+            if not profile:
+                _LOGGER.debug("No profile returned from HBX Controls")
+                raise ConfigEntryAuthFailed("Failed to get user profile")
+
+            _LOGGER.debug("Fetching buildings")
+            buildings = await self.sensorlinx.get_buildings()
+            if not buildings:
+                buildings = []
+
+            devices: dict[str, dict[str, Any]] = {}
+            for building in buildings:
+                building_id = building.get("id")
+                _LOGGER.debug("Fetching devices for building: %s", building_id)
+                try:
+                    building_devices = await self.sensorlinx.get_devices(building_id)
+                except Exception as building_exc:  # noqa: BLE001
+                    _LOGGER.warning(
+                        "Failed to get devices for building %s: %s",
+                        building_id, building_exc,
+                    )
+                    continue
+                if not building_devices:
+                    continue
+
+                for device in building_devices:
+                    device_id = device.get("syncCode") or device.get("id")
+                    if not device_id:
+                        continue
+
+                    dtype = (device.get("deviceType") or "").upper()
+                    device_helper = device_for(self.sensorlinx, building_id, device)
+
+                    parameters: dict[str, Any] = {}
+                    # Always populate the diagnostic fields so HA registers
+                    # the device regardless of type.
+                    try:
+                        parameters["firmware_version"] = await device_helper.get_firmware_version(
+                            device_info=device
+                        )
+                    except Exception:  # noqa: BLE001
+                        pass
+                    parameters["device_type"] = dtype or "Unknown"
+
+                    try:
+                        if dtype == DEVICE_TYPE_THM:
+                            parameters.update(await _extract_thm_parameters(device_helper, device))
+                        elif dtype == DEVICE_TYPE_ZON:
+                            parameters.update(await _extract_zon_parameters(device_helper, device))
+                        else:
+                            # ECO or unknown — preserve the historical full extract.
+                            parameters.update(await _extract_eco_parameters(device_helper, device))
+                    except Exception as param_exc:  # noqa: BLE001
+                        _LOGGER.warning(
+                            "Failed to extract parameters for device %s: %s",
+                            device_id, param_exc,
+                        )
+
+                    device["parameters"] = parameters
+                    device["building_id"] = building_id
+                    devices[device_id] = device
+
+            _wire_via_device_links(devices)
+
+            # Get weather data for each building (building-level, not device-level)
+            weather: dict[str, Any] = {}
+            for building in buildings:
+                building_id = building.get("id")
+                try:
+                    from pysensorlinx.sensorlinx import SensorlinxDevice as _SD
+                    weather_helper = _SD(self.sensorlinx, building_id, "")
+                    building_weather: dict[str, Any] = {}
+                    try:
+                        current = await weather_helper.get_current_weather(building_info=building)
+                        if current:
+                            building_weather["current"] = current
+                    except Exception as exc:  # noqa: BLE001
+                        _LOGGER.debug("No current weather for building %s: %s", building_id, exc)
+                    try:
+                        forecast = await weather_helper.get_forecast(building_info=building)
+                        if forecast:
+                            building_weather["forecast"] = forecast
+                    except Exception as exc:  # noqa: BLE001
+                        _LOGGER.debug("No forecast for building %s: %s", building_id, exc)
+                    if building_weather:
+                        weather[building_id] = building_weather
+                except Exception as weather_exc:  # noqa: BLE001
+                    _LOGGER.debug(
+                        "Failed to get weather for building %s: %s",
+                        building_id, weather_exc,
+                    )
+
+            _LOGGER.debug(
+                "Data update complete: profile=%s, buildings=%d, devices=%d, weather=%d",
+                bool(profile), len(buildings), len(devices), len(weather),
+            )
+            return {
+                "profile": profile,
+                "buildings": buildings,
+                "devices": devices,
+                "weather": weather,
+            }
+
+        except ConfigEntryAuthFailed:
+            _LOGGER.debug("Authentication failed during data update")
+            raise
+        except InvalidCredentialsError as exc:
+            _LOGGER.warning("Invalid credentials for SensorLinx: %s", exc)
+            raise ConfigEntryAuthFailed(str(exc)) from exc
+        except (LoginTimeoutError, LoginError) as exc:
+            _LOGGER.warning("Transient SensorLinx login failure: %s", exc)
+            try:
+                await self.sensorlinx.close()
+            except Exception:  # pylint: disable=broad-except
+                pass
+            raise UpdateFailed(f"SensorLinx login failed: {exc}") from exc
+        except Exception as exc:
+            _LOGGER.error("Error communicating with SensorLinx API: %s", exc)
+            raise UpdateFailed(f"Error communicating with API: {exc}") from exc
 
     async def async_shutdown(self) -> None:
         """Close the HBX Controls connection."""
