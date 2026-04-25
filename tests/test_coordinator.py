@@ -29,9 +29,14 @@ def _make_mock_sensorlinx(
     profile: dict | None = None,
     buildings: list[dict] | None = None,
     devices: list[dict] | None = None,
+    is_logged_in: bool = False,
 ):
     """Return a mocked Sensorlinx object for coordinator tests."""
     mock = AsyncMock()
+    # is_logged_in is a plain bool property on the real class; the
+    # coordinator's lazy-login path checks it before calling login().
+    # AsyncMock would otherwise return a truthy mock and skip login.
+    mock.is_logged_in = is_logged_in
     mock.login = AsyncMock()
     mock.get_profile = AsyncMock(
         return_value=profile if profile is not None else {"username": MOCK_USERNAME}
@@ -242,3 +247,119 @@ async def test_update_data_device_falls_back_to_id(hass: HomeAssistant, mock_con
         result = await coordinator._async_update_data()
 
     assert "device_99" in result["devices"]
+
+
+# ---------------------------------------------------------------------------
+# Login resilience tests (PR #login-resilience)
+# ---------------------------------------------------------------------------
+
+
+async def test_update_data_skips_login_when_already_logged_in(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Lazy login: subsequent polls should not re-authenticate."""
+    coordinator = HBXControlsDataUpdateCoordinator(hass, mock_config_entry)
+    mock_sl = _make_mock_sensorlinx(is_logged_in=True)
+    coordinator.sensorlinx = mock_sl
+
+    await coordinator._async_update_data()
+
+    mock_sl.login.assert_not_called()
+    mock_sl.get_profile.assert_called_once()
+
+
+async def test_update_data_logs_in_when_not_authenticated(
+    hass: HomeAssistant, mock_config_entry
+):
+    """First poll (or post-failure) must call login()."""
+    coordinator = HBXControlsDataUpdateCoordinator(hass, mock_config_entry)
+    mock_sl = _make_mock_sensorlinx(is_logged_in=False)
+    coordinator.sensorlinx = mock_sl
+
+    await coordinator._async_update_data()
+
+    mock_sl.login.assert_called_once_with(MOCK_USERNAME, MOCK_PASSWORD)
+
+
+async def test_update_data_invalid_credentials_triggers_reauth(
+    hass: HomeAssistant, mock_config_entry
+):
+    """InvalidCredentialsError from login() must surface as ConfigEntryAuthFailed."""
+    from pysensorlinx import InvalidCredentialsError
+
+    coordinator = HBXControlsDataUpdateCoordinator(hass, mock_config_entry)
+    mock_sl = _make_mock_sensorlinx()
+    mock_sl.login = AsyncMock(side_effect=InvalidCredentialsError("bad password"))
+    coordinator.sensorlinx = mock_sl
+
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
+
+
+async def test_update_data_invalid_credentials_from_data_call(
+    hass: HomeAssistant, mock_config_entry
+):
+    """A 401-driven InvalidCredentialsError mid-poll must also surface as auth-failed."""
+    from pysensorlinx import InvalidCredentialsError
+
+    coordinator = HBXControlsDataUpdateCoordinator(hass, mock_config_entry)
+    mock_sl = _make_mock_sensorlinx(is_logged_in=True)
+    mock_sl.get_profile = AsyncMock(side_effect=InvalidCredentialsError("token revoked"))
+    coordinator.sensorlinx = mock_sl
+
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
+
+
+async def test_update_data_login_timeout_is_transient(
+    hass: HomeAssistant, mock_config_entry
+):
+    """LoginTimeoutError must become UpdateFailed (not ConfigEntryAuthFailed)."""
+    from pysensorlinx import LoginTimeoutError
+
+    coordinator = HBXControlsDataUpdateCoordinator(hass, mock_config_entry)
+    mock_sl = _make_mock_sensorlinx()
+    mock_sl.login = AsyncMock(side_effect=LoginTimeoutError("timed out"))
+    coordinator.sensorlinx = mock_sl
+
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+    # Defensive close so the next cycle starts clean.
+    mock_sl.close.assert_called_once()
+
+
+async def test_update_data_login_error_is_transient(
+    hass: HomeAssistant, mock_config_entry
+):
+    """LoginError (server 5xx etc.) must become UpdateFailed."""
+    from pysensorlinx import LoginError
+
+    coordinator = HBXControlsDataUpdateCoordinator(hass, mock_config_entry)
+    mock_sl = _make_mock_sensorlinx()
+    mock_sl.login = AsyncMock(side_effect=LoginError("502 bad gateway"))
+    coordinator.sensorlinx = mock_sl
+
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+    mock_sl.close.assert_called_once()
+
+
+async def test_update_data_recovers_on_next_cycle(
+    hass: HomeAssistant, mock_config_entry
+):
+    """After a transient login failure, the next cycle should succeed."""
+    from pysensorlinx import LoginTimeoutError
+
+    coordinator = HBXControlsDataUpdateCoordinator(hass, mock_config_entry)
+    mock_sl = _make_mock_sensorlinx()
+    mock_sl.login = AsyncMock(side_effect=[LoginTimeoutError("t/o"), None])
+    coordinator.sensorlinx = mock_sl
+
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+    # Second cycle: simulate library having cleaned up; not yet logged in.
+    mock_sl.is_logged_in = False
+    result = await coordinator._async_update_data()
+    assert "profile" in result
+    assert mock_sl.login.call_count == 2
