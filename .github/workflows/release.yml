@@ -1,0 +1,117 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'custom_components/hbx_controls/manifest.json'
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version from manifest.json
+        id: version
+        run: |
+          VERSION=$(python3 -c "import json; print(json.load(open('custom_components/hbx_controls/manifest.json'))['version'])")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Detected version: ${VERSION}"
+
+      - name: Skip if tag already exists
+        id: check_tag
+        run: |
+          if git rev-parse "refs/tags/${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "Tag ${{ steps.version.outputs.tag }} already exists; nothing to release."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push tag
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+
+      - name: Generate changelog
+        if: steps.check_tag.outputs.exists == 'false'
+        id: changelog
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${TAG}$" | head -n1)
+          if [ -z "$PREV_TAG" ]; then
+            RANGE="HEAD"
+          else
+            RANGE="${PREV_TAG}..HEAD"
+          fi
+          echo "Generating changelog: ${PREV_TAG:-initial}..${TAG}"
+
+          FEATURES=$(git log ${RANGE} --oneline --no-merges --grep="^feat" | sed 's/^[a-f0-9]* feat[^:]*: //' || true)
+          FIXES=$(git log ${RANGE} --oneline --no-merges --grep="^fix" | sed 's/^[a-f0-9]* fix[^:]*: //' || true)
+          TESTS=$(git log ${RANGE} --oneline --no-merges --grep="^test" | sed 's/^[a-f0-9]* test[^:]*: //' || true)
+          DOCS=$(git log ${RANGE} --oneline --no-merges --grep="^docs" | sed 's/^[a-f0-9]* docs[^:]*: //' || true)
+          CHORE=$(git log ${RANGE} --oneline --no-merges --grep="^chore" | sed 's/^[a-f0-9]* chore[^:]*: //' || true)
+          CI_CHANGES=$(git log ${RANGE} --oneline --no-merges --grep="^ci" | sed 's/^[a-f0-9]* ci[^:]*: //' || true)
+
+          {
+            echo "## HBX Controls ${TAG}"
+            echo ""
+            if [ -n "$FEATURES" ]; then
+              echo "### ✨ Features"
+              echo "$FEATURES" | while IFS= read -r line; do echo "- $line"; done
+              echo ""
+            fi
+            if [ -n "$FIXES" ]; then
+              echo "### 🐛 Fixes"
+              echo "$FIXES" | while IFS= read -r line; do echo "- $line"; done
+              echo ""
+            fi
+            if [ -n "$TESTS" ]; then
+              echo "### 🧪 Tests"
+              echo "$TESTS" | while IFS= read -r line; do echo "- $line"; done
+              echo ""
+            fi
+            if [ -n "$DOCS" ]; then
+              echo "### 📝 Documentation"
+              echo "$DOCS" | while IFS= read -r line; do echo "- $line"; done
+              echo ""
+            fi
+            if [ -n "$CHORE" ]; then
+              echo "### 🧹 Chores"
+              echo "$CHORE" | while IFS= read -r line; do echo "- $line"; done
+              echo ""
+            fi
+            if [ -n "$CI_CHANGES" ]; then
+              echo "### 🔧 CI"
+              echo "$CI_CHANGES" | while IFS= read -r line; do echo "- $line"; done
+              echo ""
+            fi
+            if [ -n "$PREV_TAG" ]; then
+              echo "**Full diff:** https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG}"
+            fi
+          } > /tmp/release_body.md
+
+          cat /tmp/release_body.md
+
+      - name: Create GitHub Release
+        if: steps.check_tag.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          body_path: /tmp/release_body.md
