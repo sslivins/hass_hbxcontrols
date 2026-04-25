@@ -198,11 +198,29 @@ class TestWeatherProperties:
     @pytest.mark.asyncio
     async def test_device_info(self, hass, mock_coordinator, mock_config_entry):
         """Test device info references the building."""
+        from homeassistant.helpers.device_registry import DeviceEntryType
+
         entity = await self._setup_entity(hass, mock_coordinator, mock_config_entry)
         info = entity.device_info
         assert (DOMAIN, MOCK_BUILDING_ID) in info["identifiers"]
-        assert info["name"] == "Test Building"
+        assert info["name"] == "Test Building Weather"
         assert info["manufacturer"] == "HBX Controls"
+        assert info["model"] == "Building Weather"
+        assert info["entry_type"] == DeviceEntryType.SERVICE
+
+    @pytest.mark.asyncio
+    async def test_device_info_no_building_name(
+        self, hass, mock_coordinator, mock_config_entry
+    ):
+        """Device name never falls back to the raw building_id."""
+        # Strip the building name so the fallback path is exercised
+        for b in mock_coordinator.data["buildings"]:
+            b.pop("name", None)
+
+        entity = await self._setup_entity(hass, mock_coordinator, mock_config_entry)
+        info = entity.device_info
+        assert info["name"] == "HBX Building Weather"
+        assert MOCK_BUILDING_ID not in info["name"]
 
 
 # ---------------------------------------------------------------------------

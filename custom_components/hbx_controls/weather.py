@@ -16,6 +16,8 @@ from homeassistant.const import (
     UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceEntryType
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -99,11 +101,14 @@ class HBXWeather(CoordinatorEntity, WeatherEntity):
         self._building_id = building_id
         self._attr_unique_id = f"{building_id}_weather"
         self._attr_name = "Weather"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, building_id)},
-            "name": building.get("name", building_id),
-            "manufacturer": "HBX Controls",
-        }
+        building_name = building.get("name") or "HBX Building"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, building_id)},
+            name=f"{building_name} Weather",
+            manufacturer="HBX Controls",
+            model="Building Weather",
+            entry_type=DeviceEntryType.SERVICE,
+        )
 
     @property
     def _weather_data(self) -> dict[str, Any]:
