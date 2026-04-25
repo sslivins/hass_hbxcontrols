@@ -2,10 +2,17 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from typing import Any
 
+import aiohttp
 import voluptuous as vol
-from pysensorlinx import Sensorlinx
+from pysensorlinx import (
+    InvalidCredentialsError,
+    LoginError,
+    LoginTimeoutError,
+    Sensorlinx,
+)
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
@@ -40,6 +47,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for HBX Controls."""
 
     VERSION = 1
+
+    def __init__(self) -> None:
+        """Initialize the config flow."""
+        self._reauth_entry: config_entries.ConfigEntry | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -76,6 +87,67 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> OptionsFlowHandler:
         """Get the options flow for this handler."""
         return OptionsFlowHandler(config_entry)
+
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> FlowResult:
+        """Handle reauth when the coordinator raises ConfigEntryAuthFailed."""
+        self._reauth_entry = self.hass.config_entries.async_get_entry(
+            self.context["entry_id"]
+        )
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Prompt the user for new credentials."""
+        assert self._reauth_entry is not None
+        errors: dict[str, str] = {}
+
+        existing_data = dict(self._reauth_entry.data)
+
+        if user_input is not None:
+            # Reuse the original scan_interval; the reauth dialog only
+            # collects credentials.
+            candidate = {
+                CONF_USERNAME: user_input[CONF_USERNAME],
+                CONF_PASSWORD: user_input[CONF_PASSWORD],
+                CONF_SCAN_INTERVAL: existing_data.get(
+                    CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                ),
+            }
+            try:
+                await validate_input(self.hass, candidate)
+            except CannotConnect:
+                errors["base"] = ERROR_CANNOT_CONNECT
+            except InvalidAuth:
+                errors["base"] = ERROR_AUTH_FAILED
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception during reauth")
+                errors["base"] = ERROR_UNKNOWN
+            else:
+                self.hass.config_entries.async_update_entry(
+                    self._reauth_entry, data=candidate
+                )
+                await self.hass.config_entries.async_reload(
+                    self._reauth_entry.entry_id
+                )
+                return self.async_abort(reason="reauth_successful")
+
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_USERNAME,
+                    default=existing_data.get(CONF_USERNAME, ""),
+                ): str,
+                vol.Required(CONF_PASSWORD): str,
+            }
+        )
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=schema,
+            errors=errors,
+        )
 
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
@@ -185,6 +257,12 @@ async def validate_input(hass, data: dict[str, Any]) -> dict[str, Any]:
         
     except Exception as exc:
         _LOGGER.error("Failed to connect to SensorLinx: %s", exc)
-        raise CannotConnect from exc
+        if isinstance(exc, InvalidCredentialsError):
+            raise InvalidAuth from exc
+        if isinstance(exc, (LoginTimeoutError, LoginError, aiohttp.ClientError)):
+            raise CannotConnect from exc
+        # Anything else is genuinely unexpected; let async_step_user log
+        # it and surface ERROR_UNKNOWN to the user.
+        raise
     finally:
         await sensorlinx.close()

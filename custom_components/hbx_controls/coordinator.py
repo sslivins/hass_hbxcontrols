@@ -5,7 +5,12 @@ import logging
 from datetime import timedelta
 from typing import Any
 
-from pysensorlinx import Sensorlinx
+from pysensorlinx import (
+    InvalidCredentialsError,
+    LoginError,
+    LoginTimeoutError,
+    Sensorlinx,
+)
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
@@ -39,12 +44,16 @@ class HBXControlsDataUpdateCoordinator(DataUpdateCoordinator):
       """Update data via library."""
       _LOGGER.debug("Starting HBX Controls data update")
       try:
-        # Login
-        _LOGGER.debug("Logging in as user: %s", self.entry.data[CONF_USERNAME])
-        await self.sensorlinx.login(
-          self.entry.data[CONF_USERNAME],
-          self.entry.data[CONF_PASSWORD]
-        )
+        # Lazy login: pysensorlinx>=0.2.3 owns session lifecycle and is
+        # idempotent when already authenticated. Skipping the call when
+        # we already hold a valid session avoids a pointless POST every
+        # poll cycle.
+        if not self.sensorlinx.is_logged_in:
+          _LOGGER.debug("Logging in as user: %s", self.entry.data[CONF_USERNAME])
+          await self.sensorlinx.login(
+            self.entry.data[CONF_USERNAME],
+            self.entry.data[CONF_PASSWORD]
+          )
         
         # Get user profile
         _LOGGER.debug("Fetching user profile")
@@ -360,6 +369,22 @@ class HBXControlsDataUpdateCoordinator(DataUpdateCoordinator):
       except ConfigEntryAuthFailed:
         _LOGGER.debug("Authentication failed during data update")
         raise
+      except InvalidCredentialsError as exc:
+        # Bad password / revoked account: surface to HA so reauth flow
+        # fires. The library has already cleaned up its session.
+        _LOGGER.warning("Invalid credentials for SensorLinx: %s", exc)
+        raise ConfigEntryAuthFailed(str(exc)) from exc
+      except (LoginTimeoutError, LoginError) as exc:
+        # Transient login failure (timeout, network, server 5xx). The
+        # library leaves itself in a not-logged-in state, so the next
+        # poll will attempt a fresh login. Defensively close to make
+        # sure no half-init session lingers.
+        _LOGGER.warning("Transient SensorLinx login failure: %s", exc)
+        try:
+          await self.sensorlinx.close()
+        except Exception:  # pylint: disable=broad-except
+          pass
+        raise UpdateFailed(f"SensorLinx login failed: {exc}") from exc
       except Exception as exc:
         _LOGGER.error("Error communicating with SensorLinx API: %s", exc)
         raise UpdateFailed(f"Error communicating with API: {exc}") from exc
