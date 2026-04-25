@@ -26,7 +26,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-asyncio==0.24.0
           pip install homeassistant==2024.3.3
-          pip install pysensorlinx==0.2.3
+          pip install pysensorlinx==0.3.0
 
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short

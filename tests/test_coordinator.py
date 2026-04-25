@@ -363,3 +363,78 @@ async def test_update_data_recovers_on_next_cycle(
     result = await coordinator._async_update_data()
     assert "profile" in result
     assert mock_sl.login.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# THM / ZON dispatch + via_device wiring (PR feat/thm-zon-beta)
+# ---------------------------------------------------------------------------
+
+
+async def test_thm_zon_dispatch_skips_eco_calls(
+    hass: HomeAssistant, mock_config_entry
+):
+    """
+    THM/ZON devices must use the new device_for() factory and skip the
+    ECO-specific extractor entirely (no log spam, no useless API hits).
+    Child THMs must point back at their parent ZON via via_device_id.
+    """
+    coordinator = HBXControlsDataUpdateCoordinator(hass, mock_config_entry)
+    devices = [
+        {
+            "id": "thm-1", "syncCode": "THMABC", "name": "Garage",
+            "deviceType": "THM", "firmVer": 1.22,
+        },
+        {
+            "id": "zon-1", "syncCode": "ZONXYZ", "name": "AZON-0224",
+            "deviceType": "ZON", "firmVer": 1.32,
+            "thmInfo": ["THMABC", "", None],
+        },
+    ]
+    mock_sl = _make_mock_sensorlinx(devices=devices)
+    coordinator.sensorlinx = mock_sl
+
+    from pysensorlinx import ThmDevice, ZonDevice
+
+    thm_helper = AsyncMock(spec=ThmDevice)
+    thm_helper.get_firmware_version = AsyncMock(return_value="1.22")
+    thm_helper.get_thermostat_sync_codes = AsyncMock(
+        side_effect=AttributeError("THM has no thermostat_sync_codes"),
+    )
+
+    zon_helper = AsyncMock(spec=ZonDevice)
+    zon_helper.get_firmware_version = AsyncMock(return_value="1.32")
+    zon_helper.get_thermostat_sync_codes = AsyncMock(return_value=["THMABC"])
+    zon_helper.get_relays = AsyncMock(return_value=[False] * 16)
+    zon_helper.get_relay_types = AsyncMock(return_value=[0] * 16)
+    zon_helper.get_zone_id = AsyncMock(return_value=1)
+    zon_helper.get_app_button = AsyncMock(return_value={})
+    zon_helper.get_aux_setpoint = AsyncMock(return_value={})
+
+    def _device_for(sl, building_id, dev):
+        return zon_helper if (dev.get("deviceType") or "").upper() == "ZON" else thm_helper
+
+    with patch(
+        "custom_components.hbx_controls.coordinator.device_for",
+        side_effect=_device_for,
+    ):
+        result = await coordinator._async_update_data()
+
+    assert "THMABC" in result["devices"]
+    assert "ZONXYZ" in result["devices"]
+
+    thm = result["devices"]["THMABC"]
+    zon = result["devices"]["ZONXYZ"]
+
+    # via_device wiring: child THM points to parent ZON.
+    assert thm.get("via_device_id") == "ZONXYZ"
+    assert zon.get("via_device_id") is None
+
+    # ECO-specific calls must NOT have been issued on either helper.
+    assert not thm_helper.get_hot_tank_differential.called
+    assert not thm_helper.get_dhw_state.called
+    assert not zon_helper.get_hot_tank_differential.called
+
+    # Diagnostic params populated regardless of device type.
+    assert thm["parameters"]["device_type"] == "THM"
+    assert zon["parameters"]["device_type"] == "ZON"
+    assert zon["parameters"]["thermostat_sync_codes"] == ["THMABC"]

@@ -29,6 +29,22 @@ from .coordinator import HBXControlsDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+
+def _build_device_info(device: dict[str, Any], device_id: str) -> dict[str, Any]:
+    """Build a HA device_info dict, including via_device for child THMs."""
+    parameters = device.get("parameters") or {}
+    info: dict[str, Any] = {
+        "identifiers": {(DOMAIN, device_id)},
+        "name": device.get("name", device_id),
+        "manufacturer": "HBX Controls",
+        "model": device.get("deviceType") or device.get("type", "Unknown"),
+        "sw_version": parameters.get("firmware_version") or device.get("firmware_version"),
+    }
+    if device.get("via_device_id"):
+        info["via_device"] = (DOMAIN, device["via_device_id"])
+    return info
+
+
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     # Temperature sensors - these will be dynamically created based on available temperature sensors
     SensorEntityDescription(
@@ -176,13 +192,7 @@ class HBXControlsSensor(CoordinatorEntity, SensorEntity):
         self._attr_name = f"{device.get('name', device_id)} {description.name}"
         
         # Device info
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device_id)},
-            "name": device.get("name", device_id),
-            "manufacturer": "HBX Controls",
-            "model": device.get("type", "Unknown"),
-            "sw_version": device.get("firmware_version"),
-        }
+        self._attr_device_info = _build_device_info(device, device_id)
 
     @property
     def native_value(self) -> str | int | float | None:
@@ -233,13 +243,7 @@ class HeatPumpStageRuntimeSensor(CoordinatorEntity, SensorEntity):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         
         # Device info
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device_id)},
-            "name": device.get("name", device_id),
-            "manufacturer": "HBX Controls",
-            "model": device.get("type", "Unknown"),
-            "sw_version": device.get("firmware_version"),
-        }
+        self._attr_device_info = _build_device_info(device, device_id)
 
     @property
     def native_value(self) -> str | None:
@@ -306,13 +310,7 @@ class BackupRuntimeSensor(CoordinatorEntity, SensorEntity):
         self._attr_icon = "mdi:timer-outline"
         
         # Device info
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device_id)},
-            "name": device.get("name", device_id),
-            "manufacturer": "HBX Controls",
-            "model": device.get("type", "Unknown"),
-            "sw_version": device.get("firmware_version"),
-        }
+        self._attr_device_info = _build_device_info(device, device_id)
 
     @property
     def native_value(self) -> str | None:
@@ -372,13 +370,7 @@ class DHWStateSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{device_id}_dhw_state"
         self._attr_name = f"{device.get('name', device_id)} DHW State"
 
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device_id)},
-            "name": device.get("name", device_id),
-            "manufacturer": "HBX Controls",
-            "model": device.get("type", "Unknown"),
-            "sw_version": device.get("firmware_version"),
-        }
+        self._attr_device_info = _build_device_info(device, device_id)
 
     @property
     def native_value(self) -> str | None:
