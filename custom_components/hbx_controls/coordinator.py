@@ -290,8 +290,14 @@ class HBXControlsDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Fetching user profile")
             profile = await self.sensorlinx.get_profile()
             if not profile:
-                _LOGGER.debug("No profile returned from HBX Controls")
-                raise ConfigEntryAuthFailed("Failed to get user profile")
+                # `pysensorlinx.get_profile()` returns None on transient failures
+                # (timeouts, 5xx, network blips) — InvalidCredentialsError is
+                # raised explicitly. So a None response means "try again later",
+                # NOT "credentials are bad". Forcing reauth here boots users out
+                # of the integration on every blip. Surface as UpdateFailed so
+                # HA retries on the next poll cycle.
+                _LOGGER.debug("No profile returned from HBX Controls (transient)")
+                raise UpdateFailed("Failed to get user profile (transient)")
 
             _LOGGER.debug("Fetching buildings")
             buildings = await self.sensorlinx.get_buildings()
