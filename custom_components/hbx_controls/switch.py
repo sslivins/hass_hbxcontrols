@@ -213,6 +213,19 @@ async def async_setup_entry(
                         building_id,
                     )
                 )
+
+            # ZON app button switch (writes ``aBut`` field on ZON devices).
+            # Only created when the device exposes an enabled app button slot
+            # and we have a building id to address it with.
+            if device_parameters.get("app_button_enabled") and building_id:
+                entities.append(
+                    ZonAppButtonSwitch(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
     
     _LOGGER.debug("Adding %d switch entities", len(entities))
     async_add_entities(entities)
@@ -1451,3 +1464,101 @@ class BackupOnlyTankTempSwitch(CoordinatorEntity, SwitchEntity):
         )
         await device_helper.set_backup_only_tank_temp("off")
         await self.coordinator.async_request_refresh()
+
+
+class ZonAppButtonSwitch(CoordinatorEntity, SwitchEntity):
+    """
+    Switch backing the ZON ``aBut`` (app button) field.
+
+    Toggling the switch flips the device's ``aBut`` integer between 0 and 1
+    via :meth:`pysensorlinx.sensorlinx.ZonDevice.set_app_button`. The HBX
+    cloud also flips the linked relay (typically index 12) as a side effect.
+
+    Only created when the device reports the app button slot is enabled.
+    """
+
+    _attr_icon = "mdi:gesture-tap-button"
+
+    def __init__(
+        self,
+        coordinator: "HBXControlsDataUpdateCoordinator",
+        device_id: str,
+        device: dict,
+        building_id: str,
+    ) -> None:
+        """Initialize the ZON app button switch."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+
+        params = device.get("parameters") or {}
+        label = params.get("app_button_text") or "App Button"
+
+        self._attr_unique_id = f"{device_id}_zon_app_button"
+        self._attr_name = f"{device.get('name', device_id)} {label}"
+
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "HBX Controls",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    def _params(self) -> dict | None:
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        return device.get("parameters") or {}
+
+    @property
+    def available(self) -> bool:
+        """Available when coordinator has fresh data and slot stays enabled."""
+        if not self.coordinator.last_update_success:
+            return False
+        params = self._params()
+        if not params:
+            return False
+        return bool(params.get("app_button_enabled"))
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether the app button is currently activated."""
+        params = self._params()
+        if not params:
+            return None
+        return bool(params.get("app_button_activated"))
+
+    async def _set(self, enabled: bool) -> None:
+        from pysensorlinx.sensorlinx import ZonDevice
+
+        helper = ZonDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await helper.set_app_button(enabled)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Activate the ZON app button."""
+        try:
+            await self._set(True)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.error(
+                "Failed to enable ZON app button on %s: %s",
+                self._device_id, exc,
+            )
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Deactivate the ZON app button."""
+        try:
+            await self._set(False)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.error(
+                "Failed to disable ZON app button on %s: %s",
+                self._device_id, exc,
+            )

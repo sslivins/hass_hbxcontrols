@@ -316,6 +316,17 @@ async def async_setup_entry(
                         building_id,
                     )
                 )
+
+            # ZON Auxiliary Setpoint (writes ``dhwT`` field).
+            if "aux_setpoint_target" in device_parameters and building_id:
+                entities.append(
+                    ZonAuxSetpointNumber(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
     
     _LOGGER.debug("Adding %d number entities", len(entities))
     async_add_entities(entities)
@@ -2524,3 +2535,103 @@ class DHWDifferential(CoordinatorEntity, NumberEntity):
             delta = TemperatureDelta(value, "F")
         await device_helper.set_dhw_differential(delta)
         await self.coordinator.async_request_refresh()
+
+
+class ZonAuxSetpointNumber(CoordinatorEntity, NumberEntity):
+    """
+    Number entity backing the ZON ``dhwT`` (auxiliary setpoint) field.
+
+    Writes via :meth:`pysensorlinx.sensorlinx.ZonDevice.set_aux_setpoint`,
+    which encodes the value as an integer °F before PATCHing the device.
+    """
+
+    _attr_device_class = NumberDeviceClass.TEMPERATURE
+    _attr_native_unit_of_measurement = UnitOfTemperature.FAHRENHEIT
+    _attr_native_min_value = 33
+    _attr_native_max_value = 180
+    _attr_native_step = 1
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:thermometer"
+
+    def __init__(
+        self,
+        coordinator: "HBXControlsDataUpdateCoordinator",
+        device_id: str,
+        device: dict,
+        building_id: str,
+    ) -> None:
+        """Initialize the ZON aux setpoint number."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+
+        self._attr_unique_id = f"{device_id}_zon_aux_setpoint"
+        self._attr_name = f"{device.get('name', device_id)} Aux Setpoint"
+
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "HBX Controls",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    def _params(self) -> dict | None:
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        return device.get("parameters") or {}
+
+    @property
+    def available(self) -> bool:
+        return (
+            self.coordinator.last_update_success
+            and self._params() is not None
+        )
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current ``dhwT`` value (°F)."""
+        params = self._params()
+        if not params:
+            return None
+        raw = params.get("aux_setpoint_target")
+        if raw is None:
+            return None
+        # Coordinator stores ``aux["target"]`` as-is; it can be a number or a
+        # Temperature-like object exposing ``.value`` / ``.to_fahrenheit()``.
+        if hasattr(raw, "to_fahrenheit"):
+            try:
+                return float(raw.to_fahrenheit())
+            except Exception:  # noqa: BLE001
+                pass
+        if hasattr(raw, "value"):
+            try:
+                return float(raw.value)
+            except Exception:  # noqa: BLE001
+                pass
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return None
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Send the new aux setpoint to the ZON device."""
+        from pysensorlinx.sensorlinx import ZonDevice
+
+        helper = ZonDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        try:
+            await helper.set_aux_setpoint(Temperature(value, "F"))
+            await self.coordinator.async_request_refresh()
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.error(
+                "Failed to set ZON aux setpoint on %s: %s",
+                self._device_id, exc,
+            )
