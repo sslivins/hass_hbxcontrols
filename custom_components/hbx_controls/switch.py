@@ -1491,6 +1491,11 @@ class ZonAppButtonSwitch(CoordinatorEntity, SwitchEntity):
         self._device_id = device_id
         self._device = device
         self._building_id = building_id
+        # Optimistic state used between a successful write and the first
+        # coordinator refresh that confirms the new state. Avoids the 1-2s
+        # flicker caused by HBX returning the stale value immediately after
+        # a write.
+        self._pending: bool | None = None
 
         params = device.get("parameters") or {}
         label = params.get("app_button_text") or "App Button"
@@ -1526,11 +1531,21 @@ class ZonAppButtonSwitch(CoordinatorEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool | None:
-        """Return whether the app button is currently activated."""
+        """Return whether the app button is currently activated.
+
+        Returns the optimistic ``_pending`` state when a write has been
+        issued but the coordinator hasn't yet observed the new value, to
+        suppress the brief flicker caused by HBX returning the stale value
+        immediately after a write.
+        """
         params = self._params()
-        if not params:
-            return None
-        return bool(params.get("app_button_activated"))
+        actual = bool(params.get("app_button_activated")) if params else None
+        if self._pending is not None:
+            if actual is not None and actual == self._pending:
+                self._pending = None
+                return actual
+            return self._pending
+        return actual
 
     async def _set(self, enabled: bool) -> None:
         from pysensorlinx.sensorlinx import ZonDevice
@@ -1541,6 +1556,8 @@ class ZonAppButtonSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await helper.set_app_button(enabled)
+        self._pending = enabled
+        self.async_write_ha_state()
         await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self, **kwargs: Any) -> None:

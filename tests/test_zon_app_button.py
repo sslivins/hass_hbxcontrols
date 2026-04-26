@@ -65,7 +65,10 @@ async def test_setup_entry_skips_when_disabled(hass, mock_coordinator, mock_conf
 @pytest.fixture
 def app_switch(mock_coordinator):
     device = _coordinator_with_zon(mock_coordinator)
-    return ZonAppButtonSwitch(mock_coordinator, ZON_DEVICE_ID, device, MOCK_BUILDING_ID)
+    sw = ZonAppButtonSwitch(mock_coordinator, ZON_DEVICE_ID, device, MOCK_BUILDING_ID)
+    # Bypass HA's `hass` requirement when invoking optimistic state writes.
+    sw.async_write_ha_state = MagicMock()
+    return sw
 
 
 def test_is_on_reflects_activated(app_switch):
@@ -111,3 +114,40 @@ async def test_turn_on_swallows_error(app_switch, patched_zon, caplog):
     patched_zon.set_app_button.side_effect = RuntimeError("nope")
     await app_switch.async_turn_on()
     assert "Failed to enable ZON app button" in caplog.text
+
+
+async def test_optimistic_state_after_turn_on(app_switch, patched_zon, mock_coordinator):
+    """is_on returns the requested state until coordinator confirms it."""
+    app_switch.coordinator.async_request_refresh = AsyncMock()
+    # Coordinator initially reports OFF (matching device fixture).
+    assert app_switch.is_on is False
+
+    await app_switch.async_turn_on()
+
+    # Coordinator hasn't refreshed yet → still reports OFF, but is_on
+    # should now return the optimistic ON to suppress the flicker.
+    assert app_switch.is_on is True
+
+    # Coordinator catches up → optimistic state clears, returns coordinator value.
+    _coordinator_with_zon(mock_coordinator, app_button_activated=True)
+    # Re-bind device pointer (coordinator data was replaced).
+    assert app_switch.is_on is True
+    assert app_switch._pending is None
+
+
+async def test_optimistic_state_after_turn_off(app_switch, patched_zon, mock_coordinator):
+    """Optimistic state survives a stale-on coordinator refresh."""
+    _coordinator_with_zon(mock_coordinator, app_button_activated=True)
+    app_switch.coordinator.async_request_refresh = AsyncMock()
+    assert app_switch.is_on is True
+
+    await app_switch.async_turn_off()
+
+    # Stale coordinator data still says ON; is_on must report optimistic OFF.
+    assert app_switch.is_on is False
+    assert app_switch._pending is False
+
+    # Coordinator catches up to OFF → optimistic clears.
+    _coordinator_with_zon(mock_coordinator, app_button_activated=False)
+    assert app_switch.is_on is False
+    assert app_switch._pending is None
