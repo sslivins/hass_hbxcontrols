@@ -290,8 +290,16 @@ class HBXControlsDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Fetching user profile")
             profile = await self.sensorlinx.get_profile()
             if not profile:
+                # pysensorlinx.get_profile() returns None on transient API
+                # failures (network blip, 5xx, timeout, JSON decode error) and
+                # only raises LoginError for actual auth issues. So a None
+                # return here means "API hiccup", not "bad credentials" —
+                # raise UpdateFailed so HA retries next cycle instead of
+                # kicking the user into the reauth flow. Real auth failures
+                # are caught by the InvalidCredentialsError / LoginError
+                # branches below.
                 _LOGGER.debug("No profile returned from HBX Controls")
-                raise ConfigEntryAuthFailed("Failed to get user profile")
+                raise UpdateFailed("Failed to get user profile")
 
             _LOGGER.debug("Fetching buildings")
             buildings = await self.sensorlinx.get_buildings()
