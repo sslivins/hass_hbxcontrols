@@ -145,14 +145,20 @@ async def test_update_data_success(hass: HomeAssistant, mock_config_entry):
     mock_sl.get_buildings.assert_called_once()
 
 
-async def test_update_data_auth_failed(hass: HomeAssistant, mock_config_entry):
-    """Test ConfigEntryAuthFailed is raised when profile is None."""
+async def test_update_data_profile_none_is_transient(hass: HomeAssistant, mock_config_entry):
+    """A None profile means transient API failure → UpdateFailed, NOT reauth.
+
+    pysensorlinx.get_profile() swallows non-auth exceptions and returns None.
+    Mapping that to ConfigEntryAuthFailed forced users into the reauth flow on
+    every transient HBX API hiccup. Real auth failures raise LoginError /
+    InvalidCredentialsError and are tested separately below.
+    """
     coordinator = HBXControlsDataUpdateCoordinator(hass, mock_config_entry)
     mock_sl = _make_mock_sensorlinx(profile=None)
     mock_sl.get_profile = AsyncMock(return_value=None)
     coordinator.sensorlinx = mock_sl
 
-    with pytest.raises(ConfigEntryAuthFailed):
+    with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
 
 
