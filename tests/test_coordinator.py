@@ -145,14 +145,20 @@ async def test_update_data_success(hass: HomeAssistant, mock_config_entry):
     mock_sl.get_buildings.assert_called_once()
 
 
-async def test_update_data_auth_failed(hass: HomeAssistant, mock_config_entry):
-    """Test ConfigEntryAuthFailed is raised when profile is None."""
+async def test_update_data_profile_none_is_transient(hass: HomeAssistant, mock_config_entry):
+    """A None profile means transient API failure → UpdateFailed, NOT reauth.
+
+    pysensorlinx.get_profile() swallows non-auth exceptions and returns None.
+    Mapping that to ConfigEntryAuthFailed forced users into the reauth flow on
+    every transient HBX API hiccup. Real auth failures raise LoginError /
+    InvalidCredentialsError and are tested separately below.
+    """
     coordinator = HBXControlsDataUpdateCoordinator(hass, mock_config_entry)
     mock_sl = _make_mock_sensorlinx(profile=None)
     mock_sl.get_profile = AsyncMock(return_value=None)
     coordinator.sensorlinx = mock_sl
 
-    with pytest.raises(ConfigEntryAuthFailed):
+    with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
 
 
@@ -363,3 +369,139 @@ async def test_update_data_recovers_on_next_cycle(
     result = await coordinator._async_update_data()
     assert "profile" in result
     assert mock_sl.login.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# Regression guard: transient failures must NEVER trigger reauth.
+#
+# 2.3.0 introduced a bug where pysensorlinx.get_profile() returning None on a
+# transient API failure was mapped to ConfigEntryAuthFailed, which kicked
+# users into HA''s reauth flow on every network blip. 2.3.2 fixed it. These
+# tests pin the contract:
+#
+#   - ConfigEntryAuthFailed → ONLY when credentials are actually invalid
+#     (login raises InvalidCredentialsError, or get_profile/get_buildings
+#     raises InvalidCredentialsError mid-session).
+#   - UpdateFailed → for everything else: None responses, generic
+#     exceptions, network errors, server 5xx, JSON decode errors, etc.
+#
+# If you''re tempted to raise ConfigEntryAuthFailed somewhere new, ask
+# yourself: "Will retrying with the same password work?" If yes, it should
+# be UpdateFailed.
+# ---------------------------------------------------------------------------
+
+
+class _SimulatedNetworkError(Exception):
+    """Stand-in for any non-auth runtime exception (TimeoutError,
+    aiohttp.ClientError, JSONDecodeError, etc.) that pysensorlinx may
+    surface when its broad-except path doesn''t fire."""
+
+
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        # (description, mutator)
+        # Each mutator takes the mock_sl and breaks one thing transiently.
+        pytest.param(
+            ("get_profile returns None", lambda m: setattr(m, "get_profile", AsyncMock(return_value=None))),
+            id="profile-none",
+        ),
+        pytest.param(
+            ("get_profile returns empty dict", lambda m: setattr(m, "get_profile", AsyncMock(return_value={}))),
+            id="profile-empty-dict",
+        ),
+        pytest.param(
+            ("get_profile raises generic Exception",
+             lambda m: setattr(m, "get_profile", AsyncMock(side_effect=_SimulatedNetworkError("boom")))),
+            id="profile-network-error",
+        ),
+        pytest.param(
+            ("get_profile raises TimeoutError",
+             lambda m: setattr(m, "get_profile", AsyncMock(side_effect=TimeoutError("read timed out")))),
+            id="profile-timeout",
+        ),
+        pytest.param(
+            ("get_buildings raises generic Exception",
+             lambda m: setattr(m, "get_buildings", AsyncMock(side_effect=_SimulatedNetworkError("502 bad gateway")))),
+            id="buildings-network-error",
+        ),
+        pytest.param(
+            ("login raises generic Exception",
+             lambda m: setattr(m, "login", AsyncMock(side_effect=_SimulatedNetworkError("connection refused")))),
+            id="login-connection-refused",
+        ),
+        pytest.param(
+            ("login raises TimeoutError",
+             lambda m: setattr(m, "login", AsyncMock(side_effect=TimeoutError("connect timed out")))),
+            id="login-timeout-error",
+        ),
+    ],
+)
+async def test_transient_failures_never_trigger_reauth(
+    hass: HomeAssistant, mock_config_entry, scenario
+):
+    """All transient backend failures must surface as UpdateFailed, never as
+    ConfigEntryAuthFailed. ConfigEntryAuthFailed is reserved for actual
+    credential rejection (covered by separate tests below).
+    """
+    description, mutate = scenario
+    coordinator = HBXControlsDataUpdateCoordinator(hass, mock_config_entry)
+    mock_sl = _make_mock_sensorlinx()
+    mutate(mock_sl)
+    coordinator.sensorlinx = mock_sl
+
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+    # Hard guarantee: whatever happened, it MUST NOT be a reauth trigger.
+    # We assert this explicitly because pytest.raises(UpdateFailed) would
+    # also accept ConfigEntryAuthFailed in the future if someone made it
+    # a subclass — and HA''s reauth-flow contract depends on the exact
+    # exception type, not just the name.
+    try:
+        await coordinator._async_update_data()
+    except ConfigEntryAuthFailed as exc:  # pragma: no cover — regression
+        pytest.fail(
+            f"Scenario '{description}' raised ConfigEntryAuthFailed "
+            f"({exc!r}); this would force users into the reauth flow on "
+            f"a transient failure. Map it to UpdateFailed instead."
+        )
+    except UpdateFailed:
+        pass
+    except Exception:  # noqa: BLE001 — also fine, just shouldn''t be reauth
+        pass
+
+
+async def test_only_invalid_credentials_at_login_triggers_reauth(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Pin the positive case: InvalidCredentialsError at login DOES trigger
+    reauth. Paired with the transient-failures regression guard above so
+    we''ve got both directions covered.
+    """
+    from pysensorlinx import InvalidCredentialsError
+
+    coordinator = HBXControlsDataUpdateCoordinator(hass, mock_config_entry)
+    mock_sl = _make_mock_sensorlinx(is_logged_in=False)
+    mock_sl.login = AsyncMock(side_effect=InvalidCredentialsError("bad password"))
+    coordinator.sensorlinx = mock_sl
+
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
+
+
+async def test_only_invalid_credentials_mid_session_triggers_reauth(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Pin the positive case: a 401 surfaced as InvalidCredentialsError
+    from get_profile (token revoked) DOES trigger reauth.
+    """
+    from pysensorlinx import InvalidCredentialsError
+
+    coordinator = HBXControlsDataUpdateCoordinator(hass, mock_config_entry)
+    mock_sl = _make_mock_sensorlinx(is_logged_in=True)
+    mock_sl.get_profile = AsyncMock(side_effect=InvalidCredentialsError("token revoked"))
+    coordinator.sensorlinx = mock_sl
+
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
