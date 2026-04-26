@@ -445,6 +445,12 @@ async def test_thm_zon_dispatch_skips_eco_calls(
     assert zon["parameters"]["thermostat_sync_codes"] == ["THMABC"]
 
 
+class _SimulatedNetworkError(Exception):
+    """Stand-in for any non-auth runtime exception (TimeoutError,
+    aiohttp.ClientError, JSONDecodeError, etc.) that pysensorlinx may
+    surface when its broad-except path doesn't fire."""
+
+
 @pytest.mark.parametrize(
     "scenario",
     [
