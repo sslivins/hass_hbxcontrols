@@ -4,6 +4,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from pysensorlinx import DEVICE_TYPE_ZON
+
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -98,6 +100,29 @@ async def async_setup_entry(
                         "Running",
                     )
                 )
+
+            # Create per-zone demand binary sensors for ZON controllers.
+            dtype = (device_parameters.get("device_type") or device.get("deviceType") or "").upper()
+            if dtype == DEVICE_TYPE_ZON:
+                relays = device_parameters.get("relays") or []
+                relay_types = device_parameters.get("relay_types") or []
+                # Best-effort: only create entities for slots that look
+                # configured. Relay slots with relay_type == 0 are presumed
+                # disabled / unwired; if relay_types is missing entirely,
+                # fall back to all 16 slots so we don't silently skip
+                # everything on devices that don't report the array.
+                for idx in range(len(relays)):
+                    rtype = relay_types[idx] if idx < len(relay_types) else None
+                    if rtype is not None and rtype == 0:
+                        continue
+                    entities.append(
+                        ZonRelayDemandBinarySensor(
+                            coordinator,
+                            device_id,
+                            device,
+                            idx,
+                        )
+                    )
     else:
         _LOGGER.debug("No coordinator data or devices found")
     
@@ -329,3 +354,66 @@ class BackupBinarySensor(CoordinatorEntity, BinarySensorEntity):
             
         parameters = device.get("parameters", {})
         return parameters.get("backup_state") is not None
+
+
+class ZonRelayDemandBinarySensor(CoordinatorEntity, BinarySensorEntity):
+    """
+    Per-zone demand binary sensor for a ZON zone controller.
+
+    Reads the boolean state of one slot in the ZON's ``relays`` array. A
+    relay turning on reflects the controller energizing that zone's
+    pump/valve in response to a thermostat demand.
+
+    Slots are 0-indexed internally; entity names are 1-indexed for
+    user-friendliness ("Zone 1" through "Zone 16").
+    """
+
+    _attr_device_class = BinarySensorDeviceClass.RUNNING
+    _attr_icon = "mdi:pipe-valve"
+
+    def __init__(
+        self,
+        coordinator: HBXControlsDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        index: int,
+    ) -> None:
+        """Initialize the ZON relay demand binary sensor."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._index = index
+
+        self._attr_unique_id = f"{device_id}_zon_relay_{index}"
+        self._attr_name = f"{device.get('name', device_id)} Zone {index + 1}"
+
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "HBX Controls",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    def _relays(self) -> list[bool]:
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return []
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return []
+        return device.get("parameters", {}).get("relays") or []
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether this zone's relay is currently energized."""
+        relays = self._relays()
+        if self._index >= len(relays):
+            return None
+        return bool(relays[self._index])
+
+    @property
+    def available(self) -> bool:
+        """Available while the coordinator reports a relay slot for this index."""
+        if not self.coordinator.last_update_success:
+            return False
+        return self._index < len(self._relays())
