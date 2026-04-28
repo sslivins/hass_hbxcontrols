@@ -48,6 +48,17 @@ async def async_setup_entry(
                         building_id,
                     )
                 )
+
+            # THM humidity mode select (writes ``useHum`` field).
+            if "humidity_mode" in device_parameters and building_id:
+                entities.append(
+                    ThmHumidityModeSelect(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
     
     _LOGGER.debug("Adding %d select entities", len(entities))
     async_add_entities(entities)
@@ -119,4 +130,97 @@ class HvacModePrioritySelect(CoordinatorEntity, SelectEntity):
             self._device_id,
         )
         await device_helper.set_hvac_mode_priority(option)
+        await self.coordinator.async_request_refresh()
+
+
+class ThmHumidityModeSelect(CoordinatorEntity, SelectEntity):
+    """
+    Select entity backing the THM ``useHum`` field (humidity mode).
+
+    Three options:
+
+    * ``off`` (``useHum`` = 0): humidity control is disabled.
+    * ``on`` (``useHum`` = 1): runs continuously toward the humidity target.
+    * ``auto`` (``useHum`` = 2): THM picks based on conditions.
+
+    Field mapping confirmed via paired before/after THM-0600 dumps on
+    2026-04-28.
+    """
+
+    _attr_options = ["off", "on", "auto"]
+    _attr_icon = "mdi:water-percent"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: HBXControlsDataUpdateCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        building_id: str,
+    ) -> None:
+        """Initialize the THM humidity mode select."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        self._pending: str | None = None
+
+        self._attr_unique_id = f"{device_id}_thm_humidity_mode"
+        self._attr_name = f"{device.get('name', device_id)} Humidity Mode"
+
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "HBX Controls",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    def _params(self) -> dict | None:
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        return device.get("parameters") or {}
+
+    @property
+    def available(self) -> bool:
+        """Available when coordinator data carries a humidity_mode value."""
+        if not self.coordinator.last_update_success:
+            return False
+        params = self._params()
+        return params is not None and "humidity_mode" in params
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the currently selected humidity mode."""
+        params = self._params()
+        actual = params.get("humidity_mode") if params else None
+        if self._pending is not None:
+            if actual is not None and actual == self._pending:
+                self._pending = None
+                return actual
+            return self._pending
+        return actual
+
+    async def async_select_option(self, option: str) -> None:
+        """Write the new humidity mode to the THM."""
+        from pysensorlinx.sensorlinx import ThmDevice
+
+        helper = ThmDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        try:
+            await helper.set_humidity_mode(option)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.error(
+                "Failed to set THM humidity mode on %s: %s",
+                self._device_id, exc,
+            )
+            return
+        self._pending = option
+        self.async_write_ha_state()
         await self.coordinator.async_request_refresh()

@@ -180,6 +180,21 @@ async def _extract_thm_parameters(device_helper, device: dict) -> dict[str, Any]
     except Exception as exc:  # noqa: BLE001
         _LOGGER.debug("THM away mode: %s", exc)
 
+    # Schedule + humidity raw fields. pysensorlinx 0.5.0 added setters
+    # for these but no getters yet, so we read them straight from the
+    # device dict. Field names confirmed from THM-0600 dumps 2026-04-28.
+    if "pgmble" in device:
+        parameters["schedule_enabled"] = bool(device.get("pgmble"))
+    if "useHum" in device:
+        humidity_mode = {0: "off", 1: "on", 2: "auto"}.get(device.get("useHum"))
+        if humidity_mode is not None:
+            parameters["humidity_mode"] = humidity_mode
+    if "hmT" in device:
+        try:
+            parameters["humidity_target"] = int(device.get("hmT"))
+        except (TypeError, ValueError):
+            _LOGGER.debug("THM humidity target not an int: %r", device.get("hmT"))
+
     return parameters
 
 
