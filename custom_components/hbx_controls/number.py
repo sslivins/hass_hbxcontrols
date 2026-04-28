@@ -327,6 +327,17 @@ async def async_setup_entry(
                         building_id,
                     )
                 )
+
+            # THM Humidity Target (writes ``hmT`` field).
+            if "humidity_target" in device_parameters and building_id:
+                entities.append(
+                    ThmHumidityTargetNumber(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
     
     _LOGGER.debug("Adding %d number entities", len(entities))
     async_add_entities(entities)
@@ -2635,3 +2646,99 @@ class ZonAuxSetpointNumber(CoordinatorEntity, NumberEntity):
                 "Failed to set ZON aux setpoint on %s: %s",
                 self._device_id, exc,
             )
+
+class ThmHumidityTargetNumber(CoordinatorEntity, NumberEntity):
+    """
+    Number entity backing the THM ``hmT`` (humidity target %) field.
+
+    Writes via :meth:`pysensorlinx.sensorlinx.ThmDevice.set_humidity_target`
+    which PATCHes ``hmT`` as an integer percent (0-100). Field mapping
+    confirmed via paired before/after THM-0600 dumps on 2026-04-28.
+    """
+
+    _attr_native_unit_of_measurement = "%"
+    _attr_native_min_value = 0
+    _attr_native_max_value = 100
+    _attr_native_step = 1
+    _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:water-percent"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: "HBXControlsDataUpdateCoordinator",
+        device_id: str,
+        device: dict,
+        building_id: str,
+    ) -> None:
+        """Initialize the THM humidity target number."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        self._pending: int | None = None
+
+        self._attr_unique_id = f"{device_id}_thm_humidity_target"
+        self._attr_name = f"{device.get('name', device_id)} Humidity Target"
+
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "HBX Controls",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    def _params(self) -> dict | None:
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        return device.get("parameters") or {}
+
+    @property
+    def available(self) -> bool:
+        if not self.coordinator.last_update_success:
+            return False
+        params = self._params()
+        return params is not None and "humidity_target" in params
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current humidity target in percent."""
+        params = self._params()
+        actual = params.get("humidity_target") if params else None
+        if self._pending is not None:
+            if actual is not None and int(actual) == self._pending:
+                self._pending = None
+                return float(actual)
+            return float(self._pending)
+        if actual is None:
+            return None
+        try:
+            return float(actual)
+        except (TypeError, ValueError):
+            return None
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Send the new humidity target to the THM device."""
+        from pysensorlinx.sensorlinx import ThmDevice
+
+        helper = ThmDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        target = int(round(value))
+        try:
+            await helper.set_humidity_target(target)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.error(
+                "Failed to set THM humidity target on %s: %s",
+                self._device_id, exc,
+            )
+            return
+        self._pending = target
+        self.async_write_ha_state()
+        await self.coordinator.async_request_refresh()

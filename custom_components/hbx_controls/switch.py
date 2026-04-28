@@ -226,6 +226,19 @@ async def async_setup_entry(
                         building_id,
                     )
                 )
+
+            # THM schedule-enable switch (writes ``pgmble`` field on THM
+            # devices). Created whenever the THM exposes a schedule_enabled
+            # value in its parameters dict.
+            if "schedule_enabled" in device_parameters and building_id:
+                entities.append(
+                    ThmScheduleEnableSwitch(
+                        coordinator,
+                        device_id,
+                        device,
+                        building_id,
+                    )
+                )
     
     _LOGGER.debug("Adding %d switch entities", len(entities))
     async_add_entities(entities)
@@ -1577,5 +1590,105 @@ class ZonAppButtonSwitch(CoordinatorEntity, SwitchEntity):
         except Exception as exc:  # noqa: BLE001
             _LOGGER.error(
                 "Failed to disable ZON app button on %s: %s",
+                self._device_id, exc,
+            )
+
+
+class ThmScheduleEnableSwitch(CoordinatorEntity, SwitchEntity):
+    """
+    Switch backing the THM ``pgmble`` (program enable) field.
+
+    Toggling the switch flips the device's ``pgmble`` integer between 0
+    and 1 via :meth:`pysensorlinx.sensorlinx.ThmDevice.set_schedule_enabled`.
+    When enabled, the THM's on-device weekday/weekend program drives the
+    setpoint; when disabled, the manual setpoint is held.
+    """
+
+    _attr_icon = "mdi:calendar-clock"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        coordinator: "HBXControlsDataUpdateCoordinator",
+        device_id: str,
+        device: dict,
+        building_id: str,
+    ) -> None:
+        """Initialize the THM schedule-enable switch."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._device = device
+        self._building_id = building_id
+        self._pending: bool | None = None
+
+        self._attr_unique_id = f"{device_id}_thm_schedule_enabled"
+        self._attr_name = f"{device.get('name', device_id)} Schedule"
+
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+            "name": device.get("name", device_id),
+            "manufacturer": "HBX Controls",
+            "model": device.get("deviceType", "Unknown"),
+            "sw_version": device.get("firmware_version"),
+        }
+
+    def _params(self) -> dict | None:
+        if not self.coordinator.data or "devices" not in self.coordinator.data:
+            return None
+        device = self.coordinator.data["devices"].get(self._device_id)
+        if not device:
+            return None
+        return device.get("parameters") or {}
+
+    @property
+    def available(self) -> bool:
+        """Available when coordinator has fresh data and the field is present."""
+        if not self.coordinator.last_update_success:
+            return False
+        params = self._params()
+        return params is not None and "schedule_enabled" in params
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether the on-device schedule is enabled."""
+        params = self._params()
+        actual = bool(params.get("schedule_enabled")) if params else None
+        if self._pending is not None:
+            if actual is not None and actual == self._pending:
+                self._pending = None
+                return actual
+            return self._pending
+        return actual
+
+    async def _set(self, enabled: bool) -> None:
+        from pysensorlinx.sensorlinx import ThmDevice
+
+        helper = ThmDevice(
+            self.coordinator.sensorlinx,
+            self._building_id,
+            self._device_id,
+        )
+        await helper.set_schedule_enabled(enabled)
+        self._pending = enabled
+        self.async_write_ha_state()
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Enable the THM on-device schedule."""
+        try:
+            await self._set(True)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.error(
+                "Failed to enable THM schedule on %s: %s",
+                self._device_id, exc,
+            )
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disable the THM on-device schedule."""
+        try:
+            await self._set(False)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.error(
+                "Failed to disable THM schedule on %s: %s",
                 self._device_id, exc,
             )
