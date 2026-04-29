@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hass-hbxcontrols"
-version = "2.5.0b5"
+version = "2.5.0b6"
 description = "Home Assistant custom integration for HBX Controls devices"
 readme = "README.md"
 license = {text = "MIT"}
