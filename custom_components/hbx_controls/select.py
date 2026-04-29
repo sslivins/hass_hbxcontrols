@@ -38,8 +38,13 @@ async def async_setup_entry(
             device_parameters = device.get("parameters", {})
             building_id = device.get("building_id")
             
-            # HVAC Mode Priority
-            if "hvac_mode" in device_parameters:
+            # HVAC Mode Priority — ECO/HHB-only concept (writes the ``prior``
+            # field).  THM/ZON parameter dicts also expose ``hvac_mode`` but
+            # mean a different thing (the THM's own changeover mode), and
+            # routing those through ``set_hvac_mode_priority`` writes a field
+            # the THM ignores.  Gate strictly to non-THM/non-ZON devices.
+            device_type = (device_parameters.get("device_type") or "").upper()
+            if "hvac_mode" in device_parameters and device_type not in ("THM", "ZON"):
                 entities.append(
                     HvacModePrioritySelect(
                         coordinator,

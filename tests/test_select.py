@@ -82,6 +82,43 @@ async def test_setup_no_data(
     assert len(entities) == 0
 
 
+async def test_setup_skips_thm_with_hvac_mode(
+    hass: HomeAssistant, mock_coordinator, mock_config_entry
+):
+    """THM devices expose ``hvac_mode`` (their own changeover mode) but the
+    HVAC mode priority select is an ECO concept that writes the ``prior``
+    field — which a THM ignores.  Regression test for the eelton-reported bug
+    where the priority select appeared on his THM, snapped back to "heat" on
+    every write, and lacked an "off" option.
+    """
+    params = {"hvac_mode": "heat", "device_type": "THM"}
+    device = make_device(device_type="THM", parameters=params)
+    mock_coordinator.data = make_coordinator_data(devices={MOCK_DEVICE_ID: device})
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][mock_config_entry.entry_id] = mock_coordinator
+
+    entities = []
+    await async_setup_entry(hass, mock_config_entry, lambda e: entities.extend(e))
+
+    assert not any(isinstance(e, HvacModePrioritySelect) for e in entities)
+
+
+async def test_setup_skips_zon_with_hvac_mode(
+    hass: HomeAssistant, mock_coordinator, mock_config_entry
+):
+    """ZON devices should never get the HVAC mode priority select either."""
+    params = {"hvac_mode": "heat", "device_type": "ZON"}
+    device = make_device(device_type="ZON", parameters=params)
+    mock_coordinator.data = make_coordinator_data(devices={MOCK_DEVICE_ID: device})
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][mock_config_entry.entry_id] = mock_coordinator
+
+    entities = []
+    await async_setup_entry(hass, mock_config_entry, lambda e: entities.extend(e))
+
+    assert not any(isinstance(e, HvacModePrioritySelect) for e in entities)
+
+
 # ---------------------------------------------------------------------------
 # Options
 # ---------------------------------------------------------------------------
