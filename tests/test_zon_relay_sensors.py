@@ -57,6 +57,31 @@ async def test_setup_creates_one_entity_per_configured_relay(
     assert sorted(e._index for e in relay_entities) == [0, 1, 2]
 
 
+async def test_setup_uses_relay_types_length_when_relays_is_superset(
+    hass, mock_coordinator, mock_config_entry
+):
+    """
+    Real-hardware regression (issue #12): the HBX cloud API returns a
+    16-element ``relays`` array on every ZON regardless of physical zone
+    count. ``relType`` (HBX) -> ``relay_types`` (our coordinator) is the
+    authoritative source of zone count and per-slot wiring state. A
+    4-zone ZON-0224 with 3 zones wired must yield 3 entities, not 15.
+    """
+    _coordinator_with_zon(
+        mock_coordinator,
+        relays=[False] * 16,
+        relay_types=[1, 1, 1, 0],  # eelton's AZON-0224
+    )
+    hass.data.setdefault(DOMAIN, {})[mock_config_entry.entry_id] = mock_coordinator
+
+    entities = []
+    await async_setup_entry(hass, mock_config_entry, entities.extend)
+
+    relay_entities = [e for e in entities if isinstance(e, ZonRelayDemandBinarySensor)]
+    assert len(relay_entities) == 3
+    assert sorted(e._index for e in relay_entities) == [0, 1, 2]
+
+
 async def test_setup_falls_back_to_all_slots_when_relay_types_missing(
     hass, mock_coordinator, mock_config_entry
 ):
@@ -71,11 +96,11 @@ async def test_setup_falls_back_to_all_slots_when_relay_types_missing(
     assert len(relay_entities) == 16
 
 
-async def test_setup_skips_when_relays_array_missing(
+async def test_setup_skips_when_relays_and_relay_types_both_missing(
     hass, mock_coordinator, mock_config_entry
 ):
-    """Devices without a relays array yield no relay sensors."""
-    _coordinator_with_zon(mock_coordinator, relays=[])
+    """Devices without any relay info at all yield no relay sensors."""
+    _coordinator_with_zon(mock_coordinator, relays=[], relay_types=[])
     hass.data.setdefault(DOMAIN, {})[mock_config_entry.entry_id] = mock_coordinator
 
     entities = []

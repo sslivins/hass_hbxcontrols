@@ -106,14 +106,26 @@ async def async_setup_entry(
             if dtype == DEVICE_TYPE_ZON:
                 relays = device_parameters.get("relays") or []
                 relay_types = device_parameters.get("relay_types") or []
-                # Best-effort: only create entities for slots that look
-                # configured. Relay slots with relay_type == 0 are presumed
-                # disabled / unwired; if relay_types is missing entirely,
-                # fall back to all 16 slots so we don't silently skip
-                # everything on devices that don't report the array.
-                for idx in range(len(relays)):
-                    rtype = relay_types[idx] if idx < len(relay_types) else None
-                    if rtype is not None and rtype == 0:
+                # ``relay_types`` (HBX ``relType``) is the authoritative
+                # zone-count signal: its length tells us how many zone
+                # slots this physical ZON exposes (4 on a ZON-0224, 8 on
+                # ZON-08xx, etc.) and a value of 0 marks a slot as unwired.
+                # ``relays`` (HBX ``relays``) is always 16 entries on the
+                # wire — a superset that includes things beyond zones —
+                # so iterating over it produced phantom "Zone 5..16"
+                # sensors on a 4-zone box (issue #12).
+                #
+                # Strategy: trust ``relay_types`` length when present and
+                # skip slots where ``relay_types[i] == 0``. Only fall back
+                # to ``len(relays)`` when ``relay_types`` is missing
+                # entirely so devices that don't report it still get
+                # something rather than nothing.
+                if relay_types:
+                    zone_count = len(relay_types)
+                else:
+                    zone_count = len(relays)
+                for idx in range(zone_count):
+                    if relay_types and relay_types[idx] == 0:
                         continue
                     entities.append(
                         ZonRelayDemandBinarySensor(
