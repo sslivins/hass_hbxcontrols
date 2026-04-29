@@ -119,6 +119,29 @@ async def test_setup_skips_zon_with_hvac_mode(
     assert not any(isinstance(e, HvacModePrioritySelect) for e in entities)
 
 
+async def test_setup_skips_unknown_device_type_with_hvac_mode(
+    hass: HomeAssistant, mock_coordinator, mock_config_entry
+):
+    """Unknown device types must not get the priority select.
+
+    The coordinator's ECO extractor doubles as the fallback for unknown
+    types, so a future HBX device class with an unrelated ``hvac_mode``
+    field could regress us if we blacklist instead of whitelist.  The gate
+    is positive (``device_type == "ECO"``); confirm an unknown type with
+    an ``hvac_mode`` value does NOT spawn the entity.
+    """
+    params = {"hvac_mode": "heat", "device_type": "FUTURE"}
+    device = make_device(device_type="FUTURE", parameters=params)
+    mock_coordinator.data = make_coordinator_data(devices={MOCK_DEVICE_ID: device})
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][mock_config_entry.entry_id] = mock_coordinator
+
+    entities = []
+    await async_setup_entry(hass, mock_config_entry, lambda e: entities.extend(e))
+
+    assert not any(isinstance(e, HvacModePrioritySelect) for e in entities)
+
+
 # ---------------------------------------------------------------------------
 # Options
 # ---------------------------------------------------------------------------

@@ -42,9 +42,13 @@ async def async_setup_entry(
             # field).  THM/ZON parameter dicts also expose ``hvac_mode`` but
             # mean a different thing (the THM's own changeover mode), and
             # routing those through ``set_hvac_mode_priority`` writes a field
-            # the THM ignores.  Gate strictly to non-THM/non-ZON devices.
+            # the THM ignores.  Whitelist ECO explicitly: the coordinator's
+            # ECO extractor is also the fallback for unknown device types, so
+            # a blacklist would re-leak this entity onto any new HBX device
+            # class that happens to expose ``hvac_mode`` for a different
+            # purpose.
             device_type = (device_parameters.get("device_type") or "").upper()
-            if "hvac_mode" in device_parameters and device_type not in ("THM", "ZON"):
+            if "hvac_mode" in device_parameters and device_type == "ECO":
                 entities.append(
                     HvacModePrioritySelect(
                         coordinator,
