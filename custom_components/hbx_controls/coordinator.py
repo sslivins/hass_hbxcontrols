@@ -213,6 +213,11 @@ async def _extract_zon_parameters(device_helper, device: dict) -> dict[str, Any]
     await _grab("relays", device_helper.get_relays(device))
     await _grab("relay_types", device_helper.get_relay_types(device))
     await _grab("zone_id", device_helper.get_zone_id(device))
+    # `get_sequence` was added in pysensorlinx 0.4.0+. Guard the attribute
+    # lookup so older library versions or test mocks without this method
+    # don't break extraction of the rest of the ZON parameters.
+    if hasattr(device_helper, "get_sequence"):
+        await _grab("zone_sequence", device_helper.get_sequence(device))
     try:
         codes = await device_helper.get_thermostat_sync_codes(device)
         # Stored under a stable key the next platform PR can iterate on.

@@ -13,6 +13,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -124,6 +125,15 @@ async def async_setup_entry(
                     zone_count = len(relay_types)
                 else:
                     zone_count = len(relays)
+                # The HBX mobile app numbers zones by absolute wired
+                # position across stacked ZON controllers, not by local
+                # slot. A Secondary controller at sequence=1 occupies
+                # zones 5-8, so its first three wired slots show up as
+                # Zone 5/6/7 in the app. We mirror that for parity:
+                # zone_number = sequence_value * 4 + idx + 1.
+                # Default to 0 (Primary, zones 1-4) when the field is
+                # missing so legacy fixtures keep their existing names.
+                sequence_value = device_parameters.get("zone_sequence", 0) or 0
                 for idx in range(zone_count):
                     if relay_types and relay_types[idx] == 0:
                         continue
@@ -133,13 +143,77 @@ async def async_setup_entry(
                             device_id,
                             device,
                             idx,
+                            sequence_value,
                         )
                     )
     else:
         _LOGGER.debug("No coordinator data or devices found")
-    
+
+    _purge_stale_zon_zone_entities(hass, config_entry, entities)
+
     _LOGGER.debug("Adding %d binary sensor entities", len(entities))
     async_add_entities(entities)
+
+
+def _purge_stale_zon_zone_entities(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    active_entities: list,
+) -> None:
+    """
+    Remove ZON zone-relay entries left behind in the entity registry.
+
+    Earlier integration versions (<= 2.5.0b4) created up to 16 binary
+    sensors per ZON controller regardless of how many slots were
+    actually wired. After issue #12 we trust ``relType`` to bound the
+    list, but the registry persists everything created in the past —
+    so users upgrading from a pre-b5 install see zones 5-16 lingering
+    as "unavailable" forever.
+
+    On every setup we walk the entity registry, scope to the entries
+    this config entry owns, and remove any ``<device>_zon_relay_<n>``
+    unique_id that is *not* in the active set the platform just built.
+
+    Strict scope: only ``_zon_relay_<n>`` is touched. Other binary
+    sensors (running flags, future per-device entities) are untouched.
+    """
+    try:
+        registry = er.async_get(hass)
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("Entity registry not available for cleanup: %s", exc)
+        return
+
+    active_uids = {
+        getattr(e, "_attr_unique_id", None)
+        for e in active_entities
+        if isinstance(e, ZonRelayDemandBinarySensor)
+    }
+
+    try:
+        entries = er.async_entries_for_config_entry(
+            registry, config_entry.entry_id
+        )
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("Failed to enumerate registry entries: %s", exc)
+        return
+
+    for entry in entries:
+        uid = entry.unique_id or ""
+        # Match any device's "<device_id>_zon_relay_<n>" pattern.
+        if "_zon_relay_" not in uid:
+            continue
+        if uid in active_uids:
+            continue
+        _LOGGER.info(
+            "Removing stale ZON zone entity %s (unique_id=%s) — "
+            "no longer reported by the controller",
+            entry.entity_id,
+            uid,
+        )
+        try:
+            registry.async_remove(entry.entity_id)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Failed to remove %s: %s", entry.entity_id, exc)
 
 
 class HBXControlsBinarySensor(CoordinatorEntity, BinarySensorEntity):
@@ -377,7 +451,15 @@ class ZonRelayDemandBinarySensor(CoordinatorEntity, BinarySensorEntity):
     pump/valve in response to a thermostat demand.
 
     Slots are 0-indexed internally; entity names are 1-indexed for
-    user-friendliness ("Zone 1" through "Zone 16").
+    user-friendliness and offset by the controller's sequence value
+    so stacked installs match the HBX app numbering. A Secondary
+    controller at sequence=1 with relays at idx 0/1/2 produces
+    "Zone 5/6/7" — same as what the mobile app shows for the physical
+    wiring (see issue #12 hbxtesting3.docx).
+
+    The unique_id stays raw-index ``<device>_zon_relay_<idx>`` so the
+    entity registry survives an installer relabelling a controller's
+    sequence; only the friendly name reflects the offset.
     """
 
     _attr_device_class = BinarySensorDeviceClass.RUNNING
@@ -389,15 +471,18 @@ class ZonRelayDemandBinarySensor(CoordinatorEntity, BinarySensorEntity):
         device_id: str,
         device: dict[str, Any],
         index: int,
+        sequence_value: int = 0,
     ) -> None:
         """Initialize the ZON relay demand binary sensor."""
         super().__init__(coordinator)
         self._device_id = device_id
         self._device = device
         self._index = index
+        self._sequence_value = int(sequence_value or 0)
 
+        zone_number = self._sequence_value * 4 + index + 1
         self._attr_unique_id = f"{device_id}_zon_relay_{index}"
-        self._attr_name = f"{device.get('name', device_id)} Zone {index + 1}"
+        self._attr_name = f"{device.get('name', device_id)} Zone {zone_number}"
 
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
