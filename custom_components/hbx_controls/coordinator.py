@@ -161,6 +161,34 @@ async def _extract_thm_parameters(device_helper, device: dict) -> dict[str, Any]
     except Exception as exc:  # noqa: BLE001
         _LOGGER.debug("THM target temp: %s", exc)
 
+    # Dual heat/cool setpoints — pysensorlinx 0.5.2+. Both fields exist
+    # at all times in the device payload regardless of changeover mode;
+    # rmT = heat target, rmCT = cool target.
+    try:
+        heat_setpoint = await device_helper.get_heat_setpoint(device)
+        if heat_setpoint is not None:
+            parameters["heat_setpoint"] = heat_setpoint.value
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("THM heat setpoint: %s", exc)
+
+    try:
+        cool_setpoint = await device_helper.get_cool_setpoint(device)
+        if cool_setpoint is not None:
+            parameters["cool_setpoint"] = cool_setpoint.value
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("THM cool setpoint: %s", exc)
+
+    # Active demand bitfield decoder — pysensorlinx 0.5.2+. Returns a
+    # list (subset of {heating, cooling, fan}) that the climate entity
+    # uses for hvac_action; the cloud's isCooling flag is unreliable.
+    if hasattr(device_helper, "get_active_demands"):
+        try:
+            demands = await device_helper.get_active_demands(device)
+            if demands is not None:
+                parameters["active_demands"] = list(demands)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("THM active demands: %s", exc)
+
     await _grab("humidity", device_helper.get_humidity(device))
     await _grab("hvac_mode", device_helper.get_hvac_mode(device))
     await _grab("fan_mode", device_helper.get_fan_mode(device))

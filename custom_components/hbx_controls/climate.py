@@ -8,6 +8,8 @@ from pysensorlinx import DEVICE_TYPE_THM
 from pysensorlinx.sensorlinx import Temperature, ThmDevice
 
 from homeassistant.components.climate import (
+    ATTR_TARGET_TEMP_HIGH,
+    ATTR_TARGET_TEMP_LOW,
     ClimateEntity,
     ClimateEntityFeature,
     HVACAction,
@@ -27,11 +29,14 @@ _LOGGER = logging.getLogger(__name__)
 
 # Map between HA HVACMode values and the strings :py:meth:`ThmDevice.set_hvac_mode`
 # accepts. ``ThmDevice.set_hvac_mode`` writes the matching ``cngOvr`` integer.
+# Note: HA's HEAT_COOL maps to the device's ``auto`` (cngOvr=0). The cloud
+# library still names that enum value ``"auto"``; the public-facing terminology
+# in HA is HEAT_COOL because dual setpoints are advertised in that mode.
 _THM_HVAC_TO_LIB = {
     HVACMode.OFF: "off",
     HVACMode.HEAT: "heat",
     HVACMode.COOL: "cool",
-    HVACMode.AUTO: "auto",
+    HVACMode.HEAT_COOL: "auto",
 }
 
 # Friendly names HA shows for fan modes; mapped to library values when writing.
@@ -300,13 +305,20 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
     """
     Climate entity for THM-style thermostats (e.g. THM-0600).
 
-    Backed by :class:`pysensorlinx.sensorlinx.ThmDevice` setters introduced
-    in pysensorlinx 0.4.0:
+    Backed by :class:`pysensorlinx.sensorlinx.ThmDevice`.
 
-    * HVAC mode    -> ``cngOvr`` (auto/heat/cool/off)
-    * Fan mode     -> ``fnMode`` (off/on/intermittent)
-    * Setpoint     -> ``target.value`` (°F int)
-    * Away preset  -> ``away`` (0/1)
+    * HVAC mode      -> ``cngOvr`` (auto/heat/cool/off)
+    * Fan mode       -> ``fnMode`` (off/on/intermittent)
+    * Heat setpoint  -> ``rmT`` (°F int)
+    * Cool setpoint  -> ``rmCT`` (°F int)
+    * Away preset    -> ``away`` (0/1)
+
+    Heat-cool dual-setpoint support arrived in pysensorlinx 0.5.2 once
+    we determined that ``rmT`` and ``rmCT`` always reflect the heat
+    target and cool target respectively, even in Auto changeover.
+    The previously-used single-target ``set_target_temperature``
+    inferred the active side from ``target.type``, which is biased to
+    heat in Auto and so cannot drive HEAT_COOL mode correctly.
 
     Reads come from the parameter dict the coordinator extracts via
     :func:`coordinator._extract_thm_parameters`.
@@ -316,7 +328,12 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
     _attr_min_temp = 35
     _attr_max_temp = 99
     _attr_target_temperature_step = 1
-    _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL, HVACMode.AUTO]
+    _attr_hvac_modes = [
+        HVACMode.OFF,
+        HVACMode.HEAT,
+        HVACMode.COOL,
+        HVACMode.HEAT_COOL,
+    ]
     _attr_fan_modes = _THM_FAN_MODES
     _attr_preset_modes = _THM_PRESET_MODES
 
@@ -335,8 +352,12 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
         self._attr_unique_id = f"{device_id}_thm_climate"
         self._attr_name = f"{device.get('name', device_id)} Climate"
 
+        # We advertise BOTH single-setpoint and range features. HA picks
+        # which UI to show based on ``hvac_mode``: HEAT/COOL use the
+        # single setpoint, HEAT_COOL uses target_temperature_low/high.
         self._attr_supported_features = (
             ClimateEntityFeature.TARGET_TEMPERATURE
+            | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
             | ClimateEntityFeature.FAN_MODE
             | ClimateEntityFeature.PRESET_MODE
             | ClimateEntityFeature.TURN_ON
@@ -396,11 +417,40 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
 
     @property
     def target_temperature(self) -> float | None:
-        """Return the active target temperature."""
+        """Return the active single-setpoint target.
+
+        Returned for HEAT (heat setpoint) and COOL (cool setpoint).
+        ``None`` for HEAT_COOL/OFF — those use the low/high pair.
+        """
         params = self._params()
         if not params:
             return None
-        return params.get("target_temperature_room")
+        mode = self.hvac_mode
+        if mode == HVACMode.HEAT:
+            return params.get("heat_setpoint")
+        if mode == HVACMode.COOL:
+            return params.get("cool_setpoint")
+        return None
+
+    @property
+    def target_temperature_low(self) -> float | None:
+        """Heat-side setpoint when in HEAT_COOL mode."""
+        if self.hvac_mode != HVACMode.HEAT_COOL:
+            return None
+        params = self._params()
+        if not params:
+            return None
+        return params.get("heat_setpoint")
+
+    @property
+    def target_temperature_high(self) -> float | None:
+        """Cool-side setpoint when in HEAT_COOL mode."""
+        if self.hvac_mode != HVACMode.HEAT_COOL:
+            return None
+        params = self._params()
+        if not params:
+            return None
+        return params.get("cool_setpoint")
 
     @property
     def hvac_mode(self) -> HVACMode | None:
@@ -416,21 +466,30 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
         if mode == "cool":
             return HVACMode.COOL
         if mode == "auto":
-            return HVACMode.AUTO
+            return HVACMode.HEAT_COOL
         return None
 
     @property
     def hvac_action(self) -> HVACAction | None:
-        """Return current HVAC action (heating/cooling/idle/off)."""
+        """Return current HVAC action (heating/cooling/idle/off).
+
+        Derived from the ``active_demands`` list (decoded from the
+        ``dmd`` bitfield) — that's the only reliable signal. The
+        cloud's ``isCooling`` flag is broken (always false even with
+        an active cool call). Cooling takes priority over heating in
+        the unlikely event both bits are set; fan-only renders as
+        idle for hydronic systems.
+        """
         params = self._params()
         if not params:
             return None
-        if params.get("is_off"):
+        if self.hvac_mode == HVACMode.OFF or params.get("is_off"):
             return HVACAction.OFF
-        if params.get("is_heating"):
-            return HVACAction.HEATING
-        if params.get("is_cooling"):
+        demands = params.get("active_demands") or []
+        if "cooling" in demands:
             return HVACAction.COOLING
+        if "heating" in demands:
+            return HVACAction.HEATING
         return HVACAction.IDLE
 
     @property
@@ -516,17 +575,37 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
             )
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
-        """Send the new setpoint to the THM device."""
+        """Send setpoint(s) to the THM device.
+
+        Three call shapes:
+
+        * HEAT_COOL: HA passes ``target_temp_low`` (heat) and
+          ``target_temp_high`` (cool). We write both with a single
+          atomic ``set_heat_cool_setpoints`` PATCH.
+        * HEAT: HA passes ``temperature``; we write ``rmT``.
+        * COOL: HA passes ``temperature``; we write ``rmCT``.
+        """
+        low = kwargs.get(ATTR_TARGET_TEMP_LOW)
+        high = kwargs.get(ATTR_TARGET_TEMP_HIGH)
         temperature = kwargs.get(ATTR_TEMPERATURE)
-        if temperature is None:
-            return
-        # HA always passes the value in the entity's configured unit
-        # (Fahrenheit for this entity), so no conversion is needed before
-        # constructing the Temperature object.
+
+        helper = self._device_helper()
         try:
-            await self._device_helper().set_target_temperature(
-                Temperature(temperature, "F")
-            )
+            if low is not None and high is not None:
+                await helper.set_heat_cool_setpoints(
+                    Temperature(low, "F"),
+                    Temperature(high, "F"),
+                )
+            elif temperature is not None:
+                mode = self.hvac_mode
+                if mode == HVACMode.COOL:
+                    await helper.set_cool_setpoint(Temperature(temperature, "F"))
+                else:
+                    # Default to heat for HEAT (and any unknown) — matches
+                    # the HBX app's behaviour.
+                    await helper.set_heat_setpoint(Temperature(temperature, "F"))
+            else:
+                return
             await self.coordinator.async_request_refresh()
         except Exception as exc:  # noqa: BLE001
             _LOGGER.error(
@@ -535,8 +614,8 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
             )
 
     async def async_turn_on(self) -> None:
-        """Turn the thermostat on (resume Auto changeover)."""
-        await self.async_set_hvac_mode(HVACMode.AUTO)
+        """Turn the thermostat on (resume HEAT_COOL changeover)."""
+        await self.async_set_hvac_mode(HVACMode.HEAT_COOL)
 
     async def async_turn_off(self) -> None:
         """Turn the thermostat off (changeover -> Off)."""
