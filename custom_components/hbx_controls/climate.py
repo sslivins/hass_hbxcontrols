@@ -421,14 +421,23 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
 
         Returned for HEAT (heat setpoint) and COOL (cool setpoint).
         ``None`` for HEAT_COOL/OFF — those use the low/high pair.
+
+        When the Away preset is active and an away setpoint is published
+        by the device, we return the away value instead so HA's UI
+        reflects what the device is actually targeting.
         """
         params = self._params()
         if not params:
             return None
         mode = self.hvac_mode
+        away = self.preset_mode == _THM_PRESET_AWAY
         if mode == HVACMode.HEAT:
+            if away and params.get("away_heat_setpoint") is not None:
+                return params.get("away_heat_setpoint")
             return params.get("heat_setpoint")
         if mode == HVACMode.COOL:
+            if away and params.get("away_cool_setpoint") is not None:
+                return params.get("away_cool_setpoint")
             return params.get("cool_setpoint")
         return None
 
@@ -440,6 +449,11 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
         params = self._params()
         if not params:
             return None
+        if (
+            self.preset_mode == _THM_PRESET_AWAY
+            and params.get("away_heat_setpoint") is not None
+        ):
+            return params.get("away_heat_setpoint")
         return params.get("heat_setpoint")
 
     @property
@@ -450,6 +464,11 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
         params = self._params()
         if not params:
             return None
+        if (
+            self.preset_mode == _THM_PRESET_AWAY
+            and params.get("away_cool_setpoint") is not None
+        ):
+            return params.get("away_cool_setpoint")
         return params.get("cool_setpoint")
 
     @property
@@ -584,26 +603,50 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
           atomic ``set_heat_cool_setpoints`` PATCH.
         * HEAT: HA passes ``temperature``; we write ``rmT``.
         * COOL: HA passes ``temperature``; we write ``rmCT``.
+
+        When the Away preset is active, writes are routed to the
+        ``awayMode.heatTarget``/``awayMode.coolTarget`` nested fields
+        via the matching ``set_away_*`` methods on pysensorlinx 0.5.3+.
+        On older pysensorlinx the away-routing branch falls back to
+        the home-mode writes (which the cloud silently ignores while
+        away is active — this matches pre-0.5.3 behaviour).
         """
         low = kwargs.get(ATTR_TARGET_TEMP_LOW)
         high = kwargs.get(ATTR_TARGET_TEMP_HIGH)
         temperature = kwargs.get(ATTR_TEMPERATURE)
 
         helper = self._device_helper()
+        away = self.preset_mode == _THM_PRESET_AWAY
         try:
             if low is not None and high is not None:
-                await helper.set_heat_cool_setpoints(
-                    Temperature(low, "F"),
-                    Temperature(high, "F"),
-                )
+                if away and hasattr(helper, "set_away_heat_cool_setpoints"):
+                    await helper.set_away_heat_cool_setpoints(
+                        Temperature(low, "F"),
+                        Temperature(high, "F"),
+                    )
+                else:
+                    await helper.set_heat_cool_setpoints(
+                        Temperature(low, "F"),
+                        Temperature(high, "F"),
+                    )
             elif temperature is not None:
                 mode = self.hvac_mode
                 if mode == HVACMode.COOL:
-                    await helper.set_cool_setpoint(Temperature(temperature, "F"))
+                    if away and hasattr(helper, "set_away_cool_setpoint"):
+                        await helper.set_away_cool_setpoint(
+                            Temperature(temperature, "F")
+                        )
+                    else:
+                        await helper.set_cool_setpoint(Temperature(temperature, "F"))
                 else:
                     # Default to heat for HEAT (and any unknown) — matches
                     # the HBX app's behaviour.
-                    await helper.set_heat_setpoint(Temperature(temperature, "F"))
+                    if away and hasattr(helper, "set_away_heat_setpoint"):
+                        await helper.set_away_heat_setpoint(
+                            Temperature(temperature, "F")
+                        )
+                    else:
+                        await helper.set_heat_setpoint(Temperature(temperature, "F"))
             else:
                 return
             await self.coordinator.async_request_refresh()
