@@ -208,6 +208,26 @@ async def _extract_thm_parameters(device_helper, device: dict) -> dict[str, Any]
     except Exception as exc:  # noqa: BLE001
         _LOGGER.debug("THM away mode: %s", exc)
 
+    # Away-mode setpoints — pysensorlinx 0.5.3+. The Away preset reads
+    # from a separate nested object (awayMode.heatTarget/coolTarget) and
+    # the home setpoints (rmT/rmCT) are silently ignored while away is
+    # active. Guarded with hasattr for older pysensorlinx versions.
+    if hasattr(device_helper, "get_away_heat_setpoint"):
+        try:
+            away_heat = await device_helper.get_away_heat_setpoint(device)
+            if away_heat is not None:
+                parameters["away_heat_setpoint"] = away_heat.value
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("THM away heat setpoint: %s", exc)
+
+    if hasattr(device_helper, "get_away_cool_setpoint"):
+        try:
+            away_cool = await device_helper.get_away_cool_setpoint(device)
+            if away_cool is not None:
+                parameters["away_cool_setpoint"] = away_cool.value
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("THM away cool setpoint: %s", exc)
+
     # Schedule + humidity raw fields. pysensorlinx 0.5.0 added setters
     # for these but no getters yet, so we read them straight from the
     # device dict. Field names confirmed from THM-0600 dumps 2026-04-28.

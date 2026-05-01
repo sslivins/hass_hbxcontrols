@@ -236,6 +236,9 @@ def patched_thm():
         instance.set_heat_setpoint = AsyncMock()
         instance.set_cool_setpoint = AsyncMock()
         instance.set_heat_cool_setpoints = AsyncMock()
+        instance.set_away_heat_setpoint = AsyncMock()
+        instance.set_away_cool_setpoint = AsyncMock()
+        instance.set_away_heat_cool_setpoints = AsyncMock()
         cls.return_value = instance
         yield instance
 
@@ -338,3 +341,139 @@ async def test_write_swallows_setter_failure(thm_climate, patched_thm, caplog):
     thm_climate.coordinator.async_request_refresh = AsyncMock()
     await thm_climate.async_set_hvac_mode(HVACMode.HEAT)  # must not raise
     assert "Failed to set THM HVAC mode" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# 2.5.0b10: Away-preset setpoint routing
+#
+# When the Away preset is active the home setpoints (rmT/rmCT) are
+# silently ignored by the cloud. We route reads/writes to the
+# awayMode.heatTarget/coolTarget nested fields instead.
+# ---------------------------------------------------------------------------
+
+
+def test_target_temperature_high_uses_away_value_in_away_preset(mock_coordinator):
+    device = _coordinator_with_thm(
+        mock_coordinator,
+        hvac_mode="auto",
+        away_mode_activated=True,
+        away_heat_setpoint=58.0,
+        away_cool_setpoint=92.0,
+    )
+    ent = HBXControlsThmClimate(mock_coordinator, THM_DEVICE_ID, device)
+    assert ent.target_temperature_low == 58.0
+    assert ent.target_temperature_high == 92.0
+
+
+def test_target_temperature_low_high_falls_back_to_home_when_away_missing(mock_coordinator):
+    """Older firmware / missing payload -> fall back to home setpoints."""
+    device = _coordinator_with_thm(
+        mock_coordinator,
+        hvac_mode="auto",
+        away_mode_activated=True,
+        # No away_heat_setpoint / away_cool_setpoint provided.
+    )
+    ent = HBXControlsThmClimate(mock_coordinator, THM_DEVICE_ID, device)
+    assert ent.target_temperature_low == 70.0
+    assert ent.target_temperature_high == 78.0
+
+
+def test_target_temperature_uses_away_value_in_heat_when_away(mock_coordinator):
+    device = _coordinator_with_thm(
+        mock_coordinator,
+        hvac_mode="heat",
+        away_mode_activated=True,
+        away_heat_setpoint=58.0,
+        away_cool_setpoint=92.0,
+    )
+    ent = HBXControlsThmClimate(mock_coordinator, THM_DEVICE_ID, device)
+    assert ent.target_temperature == 58.0
+
+
+def test_target_temperature_uses_away_value_in_cool_when_away(mock_coordinator):
+    device = _coordinator_with_thm(
+        mock_coordinator,
+        hvac_mode="cool",
+        away_mode_activated=True,
+        away_heat_setpoint=58.0,
+        away_cool_setpoint=92.0,
+    )
+    ent = HBXControlsThmClimate(mock_coordinator, THM_DEVICE_ID, device)
+    assert ent.target_temperature == 92.0
+
+
+def test_target_temperature_low_high_uses_home_when_not_away(mock_coordinator):
+    device = _coordinator_with_thm(
+        mock_coordinator,
+        hvac_mode="auto",
+        away_mode_activated=False,
+        away_heat_setpoint=58.0,  # present but ignored -- home preset
+        away_cool_setpoint=92.0,
+    )
+    ent = HBXControlsThmClimate(mock_coordinator, THM_DEVICE_ID, device)
+    assert ent.target_temperature_low == 70.0
+    assert ent.target_temperature_high == 78.0
+
+
+async def test_async_set_temperature_heat_cool_routes_to_away(mock_coordinator, patched_thm):
+    """HEAT_COOL + Away preset -> set_away_heat_cool_setpoints."""
+    device = _coordinator_with_thm(
+        mock_coordinator, hvac_mode="auto", away_mode_activated=True,
+    )
+    ent = HBXControlsThmClimate(mock_coordinator, THM_DEVICE_ID, device)
+    ent.coordinator.async_request_refresh = AsyncMock()
+    await ent.async_set_temperature(**{
+        ATTR_TARGET_TEMP_LOW: 58,
+        ATTR_TARGET_TEMP_HIGH: 92,
+    })
+    patched_thm.set_away_heat_cool_setpoints.assert_awaited_once()
+    args = patched_thm.set_away_heat_cool_setpoints.await_args.args
+    assert args[0].to_fahrenheit() == 58
+    assert args[1].to_fahrenheit() == 92
+    # Must NOT have written to the home-mode setpoints.
+    patched_thm.set_heat_cool_setpoints.assert_not_awaited()
+    patched_thm.set_heat_setpoint.assert_not_awaited()
+    patched_thm.set_cool_setpoint.assert_not_awaited()
+
+
+async def test_async_set_temperature_heat_routes_to_away(mock_coordinator, patched_thm):
+    """HEAT + Away preset -> set_away_heat_setpoint."""
+    device = _coordinator_with_thm(
+        mock_coordinator, hvac_mode="heat", away_mode_activated=True,
+    )
+    ent = HBXControlsThmClimate(mock_coordinator, THM_DEVICE_ID, device)
+    ent.coordinator.async_request_refresh = AsyncMock()
+    await ent.async_set_temperature(**{ATTR_TEMPERATURE: 58})
+    patched_thm.set_away_heat_setpoint.assert_awaited_once()
+    temp = patched_thm.set_away_heat_setpoint.await_args.args[0]
+    assert temp.to_fahrenheit() == 58
+    patched_thm.set_heat_setpoint.assert_not_awaited()
+
+
+async def test_async_set_temperature_cool_routes_to_away(mock_coordinator, patched_thm):
+    """COOL + Away preset -> set_away_cool_setpoint."""
+    device = _coordinator_with_thm(
+        mock_coordinator, hvac_mode="cool", away_mode_activated=True,
+    )
+    ent = HBXControlsThmClimate(mock_coordinator, THM_DEVICE_ID, device)
+    ent.coordinator.async_request_refresh = AsyncMock()
+    await ent.async_set_temperature(**{ATTR_TEMPERATURE: 92})
+    patched_thm.set_away_cool_setpoint.assert_awaited_once()
+    temp = patched_thm.set_away_cool_setpoint.await_args.args[0]
+    assert temp.to_fahrenheit() == 92
+    patched_thm.set_cool_setpoint.assert_not_awaited()
+
+
+async def test_async_set_temperature_home_preset_uses_home_setters(mock_coordinator, patched_thm):
+    """Home preset writes still go to the home-mode setters (regression)."""
+    device = _coordinator_with_thm(
+        mock_coordinator, hvac_mode="auto", away_mode_activated=False,
+    )
+    ent = HBXControlsThmClimate(mock_coordinator, THM_DEVICE_ID, device)
+    ent.coordinator.async_request_refresh = AsyncMock()
+    await ent.async_set_temperature(**{
+        ATTR_TARGET_TEMP_LOW: 67,
+        ATTR_TARGET_TEMP_HIGH: 79,
+    })
+    patched_thm.set_heat_cool_setpoints.assert_awaited_once()
+    patched_thm.set_away_heat_cool_setpoints.assert_not_awaited()
