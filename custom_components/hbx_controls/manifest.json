@@ -5,6 +5,7 @@
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/sslivins/hass_hbxcontrols",
+  "integration_type": "hub",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/sslivins/hass_hbxcontrols/issues",
   "requirements": ["pysensorlinx==0.5.6"],
