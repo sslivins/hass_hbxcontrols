@@ -254,6 +254,9 @@ class HBXControlsClimate(CoordinatorEntity, ClimateEntity):
                 # Auto mode - set both hot and cool tank targets
                 await device_helper.set_hot_tank_target_temp(temp_obj)
             
+            self.coordinator.set_parameter_override(
+                self._device_id, {"target_temperature_tank": temp_f}
+            )
             await self.coordinator.async_request_refresh()
         except Exception as exc:
             _LOGGER.error("Failed to set temperature for %s: %s", self._device_id, exc)
@@ -286,6 +289,9 @@ class HBXControlsClimate(CoordinatorEntity, ClimateEntity):
             device_helper = SensorlinxDevice(self.coordinator.sensorlinx, building_id, self._device_id)
             
             await device_helper.set_hvac_mode_priority(hvac_mode.value)
+            self.coordinator.set_parameter_override(
+                self._device_id, {"hvac_mode": hvac_mode.value}
+            )
             await self.coordinator.async_request_refresh()
         except Exception as exc:
             _LOGGER.error("Failed to set HVAC mode for %s: %s", self._device_id, exc)
@@ -556,6 +562,9 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
             return
         try:
             await self._device_helper().set_hvac_mode(lib_mode)
+            self.coordinator.set_parameter_override(
+                self._device_id, {"hvac_mode": lib_mode}
+            )
             await self.coordinator.async_request_refresh()
         except Exception as exc:  # noqa: BLE001
             _LOGGER.error(
@@ -569,6 +578,9 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
             return
         try:
             await self._device_helper().set_fan_mode(fan_mode)
+            self.coordinator.set_parameter_override(
+                self._device_id, {"fan_mode": fan_mode}
+            )
             await self.coordinator.async_request_refresh()
         except Exception as exc:  # noqa: BLE001
             _LOGGER.error(
@@ -585,6 +597,10 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
         try:
             await self._device_helper().set_away_mode(
                 preset_mode == _THM_PRESET_AWAY
+            )
+            self.coordinator.set_parameter_override(
+                self._device_id,
+                {"away_mode_activated": preset_mode == _THM_PRESET_AWAY},
             )
             await self.coordinator.async_request_refresh()
         except Exception as exc:  # noqa: BLE001
@@ -624,10 +640,18 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
                         Temperature(low, "F"),
                         Temperature(high, "F"),
                     )
+                    self.coordinator.set_parameter_override(
+                        self._device_id,
+                        {"away_heat_setpoint": low, "away_cool_setpoint": high},
+                    )
                 else:
                     await helper.set_heat_cool_setpoints(
                         Temperature(low, "F"),
                         Temperature(high, "F"),
+                    )
+                    self.coordinator.set_parameter_override(
+                        self._device_id,
+                        {"heat_setpoint": low, "cool_setpoint": high},
                     )
             elif temperature is not None:
                 mode = self.hvac_mode
@@ -636,8 +660,14 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
                         await helper.set_away_cool_setpoint(
                             Temperature(temperature, "F")
                         )
+                        self.coordinator.set_parameter_override(
+                            self._device_id, {"away_cool_setpoint": temperature}
+                        )
                     else:
                         await helper.set_cool_setpoint(Temperature(temperature, "F"))
+                        self.coordinator.set_parameter_override(
+                            self._device_id, {"cool_setpoint": temperature}
+                        )
                 else:
                     # Default to heat for HEAT (and any unknown) — matches
                     # the HBX app's behaviour.
@@ -645,8 +675,14 @@ class HBXControlsThmClimate(CoordinatorEntity, ClimateEntity):
                         await helper.set_away_heat_setpoint(
                             Temperature(temperature, "F")
                         )
+                        self.coordinator.set_parameter_override(
+                            self._device_id, {"away_heat_setpoint": temperature}
+                        )
                     else:
                         await helper.set_heat_setpoint(Temperature(temperature, "F"))
+                        self.coordinator.set_parameter_override(
+                            self._device_id, {"heat_setpoint": temperature}
+                        )
             else:
                 return
             await self.coordinator.async_request_refresh()

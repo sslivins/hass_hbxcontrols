@@ -156,7 +156,11 @@ class HBXDHWWaterHeater(CoordinatorEntity, WaterHeaterEntity):
             self._building_id,
             self._device_id,
         )
-        await device_helper.set_dhw_target_temp(Temperature(temperature, "F"))
+        temp = Temperature(temperature, "F")
+        await device_helper.set_dhw_target_temp(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"dhw_target_temp": temp}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
@@ -167,6 +171,9 @@ class HBXDHWWaterHeater(CoordinatorEntity, WaterHeaterEntity):
             self._device_id,
         )
         await device_helper.set_dhw_enabled(True)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"dhw_enabled": True}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -177,4 +184,7 @@ class HBXDHWWaterHeater(CoordinatorEntity, WaterHeaterEntity):
             self._device_id,
         )
         await device_helper.set_dhw_enabled(False)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"dhw_enabled": False}
+        )
         await self.coordinator.async_request_refresh()

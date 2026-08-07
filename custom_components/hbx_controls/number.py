@@ -426,6 +426,14 @@ class HotTankTargetTemperature(CoordinatorEntity, NumberEntity):
         # When outdoor reset is off, min and max must be the same
         await device_helper.set_hot_tank_min_temp(temp)
         await device_helper.set_hot_tank_max_temp(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id,
+            {
+                "target_temperature_tank": value,
+                "hot_tank_min_temp": temp,
+                "hot_tank_max_temp": temp,
+            },
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -514,6 +522,9 @@ class HotTankMinTemperature(CoordinatorEntity, NumberEntity):
         )
         temp = Temperature(value, "F")
         await device_helper.set_hot_tank_min_temp(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"hot_tank_min_temp": temp}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -602,6 +613,9 @@ class HotTankMaxTemperature(CoordinatorEntity, NumberEntity):
         )
         temp = Temperature(value, "F")
         await device_helper.set_hot_tank_max_temp(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"hot_tank_max_temp": temp}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -692,6 +706,9 @@ class HotTankOutdoorReset(CoordinatorEntity, NumberEntity):
         )
         temp = Temperature(value, "F")
         await device_helper.set_hot_tank_outdoor_reset(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"hot_tank_outdoor_reset": temp}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -781,6 +798,10 @@ class ColdTankTargetTemperature(CoordinatorEntity, NumberEntity):
         # When outdoor reset is off, min and max must be the same
         await device_helper.set_cold_tank_min_temp(temp)
         await device_helper.set_cold_tank_max_temp(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id,
+            {"cold_tank_min_temp": temp, "cold_tank_max_temp": temp},
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -869,6 +890,9 @@ class ColdTankMinTemperature(CoordinatorEntity, NumberEntity):
         )
         temp = Temperature(value, "F")
         await device_helper.set_cold_tank_min_temp(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"cold_tank_min_temp": temp}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -957,6 +981,9 @@ class ColdTankMaxTemperature(CoordinatorEntity, NumberEntity):
         )
         temp = Temperature(value, "F")
         await device_helper.set_cold_tank_max_temp(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"cold_tank_max_temp": temp}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1047,6 +1074,9 @@ class ColdTankOutdoorReset(CoordinatorEntity, NumberEntity):
         )
         temp = Temperature(value, "F")
         await device_helper.set_cold_tank_outdoor_reset(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"cold_tank_outdoor_reset": temp}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1137,6 +1167,9 @@ class WarmWeatherShutdown(CoordinatorEntity, NumberEntity):
         )
         temp = Temperature(value, "F")
         await device_helper.set_warm_weather_shutdown(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"warm_weather_shutdown": temp}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1227,6 +1260,9 @@ class ColdWeatherShutdown(CoordinatorEntity, NumberEntity):
         )
         temp = Temperature(value, "F")
         await device_helper.set_cold_weather_shutdown(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"cold_weather_shutdown": temp}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1295,6 +1331,9 @@ class StageOnLagTime(CoordinatorEntity, NumberEntity):
             self._device_id,
         )
         await device_helper.set_stage_on_lag_time(int(value))
+        self.coordinator.set_parameter_override(
+            self._device_id, {"stage_on_lag_time": int(value)}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1363,6 +1402,9 @@ class StageOffLagTime(CoordinatorEntity, NumberEntity):
             self._device_id,
         )
         await device_helper.set_stage_off_lag_time(int(value))
+        self.coordinator.set_parameter_override(
+            self._device_id, {"stage_off_lag_time": int(value)}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1442,6 +1484,9 @@ class RotateCycles(CoordinatorEntity, NumberEntity):
             self._device_id,
         )
         await device_helper.set_rotate_cycles(int(value))
+        self.coordinator.set_parameter_override(
+            self._device_id, {"rotate_cycles": int(value)}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1521,6 +1566,9 @@ class RotateTime(CoordinatorEntity, NumberEntity):
             self._device_id,
         )
         await device_helper.set_rotate_time(int(value))
+        self.coordinator.set_parameter_override(
+            self._device_id, {"rotate_time": int(value)}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1600,6 +1648,9 @@ class BackupLagTime(CoordinatorEntity, NumberEntity):
             self._device_id,
         )
         await device_helper.set_backup_lag_time(int(value))
+        self.coordinator.set_parameter_override(
+            self._device_id, {"backup_lag_time": int(value)}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1713,6 +1764,9 @@ class BackupDifferential(CoordinatorEntity, NumberEntity):
         else:
             delta = TemperatureDelta(value, "F")
         await device_helper.set_backup_differential(delta)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"backup_differential": delta}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1821,6 +1875,9 @@ class HotTankDifferential(CoordinatorEntity, NumberEntity):
         else:
             delta = TemperatureDelta(value, "F")
         await device_helper.set_hot_tank_differential(delta)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"hot_tank_differential": delta}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1929,6 +1986,9 @@ class ColdTankDifferential(CoordinatorEntity, NumberEntity):
         else:
             delta = TemperatureDelta(value, "F")
         await device_helper.set_cold_tank_differential(delta)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"cold_tank_differential": delta}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -2022,6 +2082,9 @@ class BackupOnlyOutdoorTemp(CoordinatorEntity, NumberEntity):
         )
         temp = Temperature(value, "F")
         await device_helper.set_backup_only_outdoor_temp(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"backup_only_outdoor_temp": temp}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -2096,6 +2159,9 @@ class NumberOfStages(CoordinatorEntity, NumberEntity):
             self._device_id,
         )
         await device_helper.set_number_of_stages(int(value))
+        self.coordinator.set_parameter_override(
+            self._device_id, {"number_of_stages": int(value)}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -2190,6 +2256,9 @@ class BackupTemp(CoordinatorEntity, NumberEntity):
         )
         temp = Temperature(value, "F")
         await device_helper.set_backup_temp(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"backup_temp": temp}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -2267,6 +2336,9 @@ class WeatherShutdownLagTime(CoordinatorEntity, NumberEntity):
             self._device_id,
         )
         await device_helper.set_weather_shutdown_lag_time(int(value))
+        self.coordinator.set_parameter_override(
+            self._device_id, {"weather_shutdown_lag_time": int(value)}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -2343,6 +2415,9 @@ class HeatCoolSwitchDelay(CoordinatorEntity, NumberEntity):
             self._device_id,
         )
         await device_helper.set_heat_cool_switch_delay(int(value))
+        self.coordinator.set_parameter_override(
+            self._device_id, {"heat_cool_switch_delay": int(value)}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -2439,6 +2514,9 @@ class BackupOnlyTankTemp(CoordinatorEntity, NumberEntity):
         )
         temp = Temperature(value, "F")
         await device_helper.set_backup_only_tank_temp(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"backup_only_tank_temp": temp}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -2545,6 +2623,9 @@ class DHWDifferential(CoordinatorEntity, NumberEntity):
         else:
             delta = TemperatureDelta(value, "F")
         await device_helper.set_dhw_differential(delta)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"dhw_differential": delta}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -2639,7 +2720,11 @@ class ZonAuxSetpointNumber(CoordinatorEntity, NumberEntity):
             self._device_id,
         )
         try:
-            await helper.set_aux_setpoint(Temperature(value, "F"))
+            aux_temp = Temperature(value, "F")
+            await helper.set_aux_setpoint(aux_temp)
+            self.coordinator.set_parameter_override(
+                self._device_id, {"aux_setpoint_target": aux_temp}
+            )
             await self.coordinator.async_request_refresh()
         except Exception as exc:  # noqa: BLE001
             _LOGGER.error(

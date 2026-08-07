@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import timedelta
 from typing import Any
 
@@ -332,6 +333,14 @@ class HBXControlsDataUpdateCoordinator(DataUpdateCoordinator):
         self.entry = entry
 
         scan_interval = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        self._scan_interval = scan_interval
+
+        # Optimistic write overrides: device_id -> {param_key: (value, expires)}.
+        # The SensorLinx cloud is eventually consistent, so a poll that races a
+        # just-written value re-reads the *old* value and reverts the entity.
+        # We hold each written value locally for a short grace window until the
+        # cloud confirms it (poll matches) or the window (TTL) expires.
+        self._overrides: dict[str, dict[str, tuple[Any, float]]] = {}
 
         super().__init__(
             hass,
@@ -339,6 +348,95 @@ class HBXControlsDataUpdateCoordinator(DataUpdateCoordinator):
             name=DOMAIN,
             update_interval=timedelta(seconds=scan_interval),
         )
+
+    @property
+    def override_ttl(self) -> float:
+        """Grace window (seconds) to hold an optimistic write.
+
+        At least two poll cycles so the cloud has time to become consistent,
+        never shorter than 120s for fast scan intervals.
+        """
+        return max(2 * self._scan_interval, 120)
+
+    @staticmethod
+    def _normalize_value(value: Any) -> Any:
+        """Reduce Temperature/TemperatureDelta wrappers to their scalar value.
+
+        pysensorlinx getters return typed Temperature objects for some params
+        and plain scalars for others; comparisons must work across both.
+        """
+        return getattr(value, "value", value)
+
+    @classmethod
+    def _values_match(cls, a: Any, b: Any) -> bool:
+        """Compare an override value against a freshly polled value."""
+        na, nb = cls._normalize_value(a), cls._normalize_value(b)
+        num = (int, float)
+        if (
+            isinstance(na, num)
+            and not isinstance(na, bool)
+            and isinstance(nb, num)
+            and not isinstance(nb, bool)
+        ):
+            return abs(float(na) - float(nb)) <= 0.1
+        return na == nb
+
+    def set_parameter_override(
+        self, device_id: str, updates: dict[str, Any], ttl: float | None = None
+    ) -> None:
+        """Optimistically hold just-written parameter values.
+
+        Call this from a platform setter *after* the pysensorlinx write
+        succeeds, passing the coordinator-data param key(s) the entity reads
+        and the value(s) written (in the same representation the extractor
+        stores — e.g. a Temperature object, "off", a bool or an int). The
+        values are reflected in ``self.data`` immediately (instant UI) and
+        re-applied over subsequent stale polls until the cloud confirms them
+        or ``ttl`` elapses.
+        """
+        if ttl is None:
+            ttl = self.override_ttl
+        expires = time.monotonic() + ttl
+        dev = self._overrides.setdefault(device_id, {})
+        for key, value in updates.items():
+            dev[key] = (value, expires)
+
+        # Reflect immediately in the current snapshot and push to entities.
+        data = self.data
+        if data:
+            devices = data.get("devices")
+            if devices and device_id in devices:
+                params = devices[device_id].get("parameters")
+                if params is not None:
+                    for key, value in updates.items():
+                        params[key] = value
+                    self.async_set_updated_data(data)
+
+    def _apply_overrides(self, devices: dict[str, dict[str, Any]]) -> None:
+        """Re-apply un-expired overrides over freshly polled parameters.
+
+        An override is cleared when the poll confirms it (cloud caught up) or
+        when its TTL expires (defer to the cloud so genuine external changes or
+        controller-rejected writes are not masked forever).
+        """
+        now = time.monotonic()
+        for device_id in list(self._overrides.keys()):
+            keys = self._overrides[device_id]
+            dev = devices.get(device_id)
+            params = dev.get("parameters") if dev else None
+            for key in list(keys.keys()):
+                value, expires = keys[key]
+                if now >= expires:
+                    del keys[key]
+                    continue
+                if params is None:
+                    continue
+                if self._values_match(value, params.get(key)):
+                    del keys[key]
+                    continue
+                params[key] = value
+            if not keys:
+                del self._overrides[device_id]
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Update data via library."""
@@ -425,6 +523,10 @@ class HBXControlsDataUpdateCoordinator(DataUpdateCoordinator):
                     devices[device_id] = device
 
             _wire_via_device_links(devices)
+
+            # Re-apply optimistic overrides so a poll that races the
+            # eventually-consistent cloud doesn't revert a just-written value.
+            self._apply_overrides(devices)
 
             # Get weather data for each building (building-level, not device-level)
             weather: dict[str, Any] = {}

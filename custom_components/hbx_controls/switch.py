@@ -306,6 +306,9 @@ class HotTankOutdoorResetSwitch(CoordinatorEntity, SwitchEntity):
         # Default to 0°F (common design outdoor temperature)
         temp = Temperature(0, "F")
         await device_helper.set_hot_tank_outdoor_reset(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"hot_tank_outdoor_reset": temp}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -316,6 +319,9 @@ class HotTankOutdoorResetSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_hot_tank_outdoor_reset("off")
+        self.coordinator.set_parameter_override(
+            self._device_id, {"hot_tank_outdoor_reset": "off"}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -377,6 +383,9 @@ class PermanentHeatDemandSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_permanent_hd(True)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"permanent_heat_demand": True}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -387,6 +396,9 @@ class PermanentHeatDemandSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_permanent_hd(False)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"permanent_heat_demand": False}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -448,6 +460,9 @@ class PermanentCoolDemandSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_permanent_cd(True)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"permanent_cool_demand": True}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -458,6 +473,9 @@ class PermanentCoolDemandSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_permanent_cd(False)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"permanent_cool_demand": False}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -523,6 +541,9 @@ class ColdTankOutdoorResetSwitch(CoordinatorEntity, SwitchEntity):
         # Default to 0°F (common design outdoor temperature)
         temp = Temperature(0, "F")
         await device_helper.set_cold_tank_outdoor_reset(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"cold_tank_outdoor_reset": temp}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -533,6 +554,9 @@ class ColdTankOutdoorResetSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_cold_tank_outdoor_reset("off")
+        self.coordinator.set_parameter_override(
+            self._device_id, {"cold_tank_outdoor_reset": "off"}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -598,6 +622,9 @@ class WarmWeatherShutdownSwitch(CoordinatorEntity, SwitchEntity):
         # Default to 88°F
         temp = Temperature(88, "F")
         await device_helper.set_warm_weather_shutdown(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"warm_weather_shutdown": temp}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -608,6 +635,9 @@ class WarmWeatherShutdownSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_warm_weather_shutdown("off")
+        self.coordinator.set_parameter_override(
+            self._device_id, {"warm_weather_shutdown": "off"}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -673,6 +703,9 @@ class ColdWeatherShutdownSwitch(CoordinatorEntity, SwitchEntity):
         # Default to 41°F
         temp = Temperature(41, "F")
         await device_helper.set_cold_weather_shutdown(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"cold_weather_shutdown": temp}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -683,6 +716,9 @@ class ColdWeatherShutdownSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_cold_weather_shutdown("off")
+        self.coordinator.set_parameter_override(
+            self._device_id, {"cold_weather_shutdown": "off"}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -747,6 +783,9 @@ class RotateCyclesSwitch(CoordinatorEntity, SwitchEntity):
         )
         # Default to 1 cycle
         await device_helper.set_rotate_cycles(1)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"rotate_cycles": 1}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -757,6 +796,9 @@ class RotateCyclesSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_rotate_cycles("off")
+        self.coordinator.set_parameter_override(
+            self._device_id, {"rotate_cycles": "off"}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -821,6 +863,9 @@ class RotateTimeSwitch(CoordinatorEntity, SwitchEntity):
         )
         # Default to 1 hour
         await device_helper.set_rotate_time(1)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"rotate_time": 1}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -831,6 +876,9 @@ class RotateTimeSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_rotate_time("off")
+        self.coordinator.set_parameter_override(
+            self._device_id, {"rotate_time": "off"}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -899,6 +947,9 @@ class SynchronizedStageOffSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_off_staging(True)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"off_staging": True}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -909,6 +960,9 @@ class SynchronizedStageOffSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_off_staging(False)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"off_staging": False}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -976,6 +1030,9 @@ class BackupLagTimeSwitch(CoordinatorEntity, SwitchEntity):
         )
         # Default to 10 minutes
         await device_helper.set_backup_lag_time(10)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"backup_lag_time": 10}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -986,6 +1043,9 @@ class BackupLagTimeSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_backup_lag_time("off")
+        self.coordinator.set_parameter_override(
+            self._device_id, {"backup_lag_time": "off"}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1055,6 +1115,9 @@ class BackupDifferentialSwitch(CoordinatorEntity, SwitchEntity):
         # Default to 10°F
         temp = Temperature(10, "F")
         await device_helper.set_backup_differential(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"backup_differential": temp}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -1065,6 +1128,9 @@ class BackupDifferentialSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_backup_differential("off")
+        self.coordinator.set_parameter_override(
+            self._device_id, {"backup_differential": "off"}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1133,6 +1199,9 @@ class BackupOnlyOutdoorTempSwitch(CoordinatorEntity, SwitchEntity):
         # Default to -13°F
         temp = Temperature(-13, "F")
         await device_helper.set_backup_only_outdoor_temp(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"backup_only_outdoor_temp": temp}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -1143,6 +1212,9 @@ class BackupOnlyOutdoorTempSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_backup_only_outdoor_temp("off")
+        self.coordinator.set_parameter_override(
+            self._device_id, {"backup_only_outdoor_temp": "off"}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1211,6 +1283,9 @@ class BackupTempSwitch(CoordinatorEntity, SwitchEntity):
         # Default to 50°F (middle of range)
         temp = Temperature(50, "F")
         await device_helper.set_backup_temp(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"backup_temp": temp}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -1221,6 +1296,9 @@ class BackupTempSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_backup_temp("off")
+        self.coordinator.set_parameter_override(
+            self._device_id, {"backup_temp": "off"}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1292,6 +1370,9 @@ class WidePriorityDifferentialSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_wide_priority_differential(True)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"wide_priority_differential": True}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -1302,6 +1383,9 @@ class WidePriorityDifferentialSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_wide_priority_differential(False)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"wide_priority_differential": False}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1386,6 +1470,9 @@ class TwoStageHeatPumpSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_two_stage_heat_pump(True)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"two_stage_heat_pump": True}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -1396,6 +1483,9 @@ class TwoStageHeatPumpSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_two_stage_heat_pump(False)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"two_stage_heat_pump": False}
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -1466,6 +1556,9 @@ class BackupOnlyTankTempSwitch(CoordinatorEntity, SwitchEntity):
         # Default to 120°F (typical hot water setting)
         temp = Temperature(120, "F")
         await device_helper.set_backup_only_tank_temp(temp)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"backup_only_tank_temp": temp}
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -1476,6 +1569,9 @@ class BackupOnlyTankTempSwitch(CoordinatorEntity, SwitchEntity):
             self._device_id,
         )
         await device_helper.set_backup_only_tank_temp("off")
+        self.coordinator.set_parameter_override(
+            self._device_id, {"backup_only_tank_temp": "off"}
+        )
         await self.coordinator.async_request_refresh()
 
 
