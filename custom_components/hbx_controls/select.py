@@ -139,6 +139,9 @@ class HvacModePrioritySelect(CoordinatorEntity, SelectEntity):
             self._device_id,
         )
         await device_helper.set_hvac_mode_priority(option)
+        self.coordinator.set_parameter_override(
+            self._device_id, {"hvac_mode": option}
+        )
         await self.coordinator.async_request_refresh()
 
 
