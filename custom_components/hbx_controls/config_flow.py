@@ -75,7 +75,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         else:
             await self.async_set_unique_id(info["title"])
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(title=info["title"], data=user_input)
+            # Only the credentials are core connection data; scan_interval is
+            # an adjustable option and belongs in entry.options.
+            return self.async_create_entry(
+                title=info["title"],
+                data={
+                    CONF_USERNAME: user_input[CONF_USERNAME],
+                    CONF_PASSWORD: user_input[CONF_PASSWORD],
+                },
+                options={CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL]},
+            )
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
@@ -107,14 +116,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         existing_data = dict(self._reauth_entry.data)
 
         if user_input is not None:
-            # Reuse the original scan_interval; the reauth dialog only
-            # collects credentials.
+            # The reauth dialog only collects credentials; scan_interval
+            # lives in entry.options and is untouched here.
             candidate = {
                 CONF_USERNAME: user_input[CONF_USERNAME],
                 CONF_PASSWORD: user_input[CONF_PASSWORD],
-                CONF_SCAN_INTERVAL: existing_data.get(
-                    CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
-                ),
             }
             try:
                 await validate_input(self.hass, candidate)
@@ -163,18 +169,33 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Manage the options."""
         if user_input is not None:
             errors = {}
-
-            # If credentials changed, validate them
-            new_username = user_input.get(CONF_USERNAME)
-            new_password = user_input.get(CONF_PASSWORD)
             current_data = dict(self._config_entry.data)
 
-            if (
+            new_username = user_input.get(CONF_USERNAME)
+            # An empty password means "leave unchanged" -- the schema never
+            # pre-fills the stored password, so a blank field should not be
+            # treated as a request to wipe the credential.
+            submitted_password = user_input.get(CONF_PASSWORD) or None
+            credentials_changed = (
                 new_username != current_data.get(CONF_USERNAME)
-                or new_password != current_data.get(CONF_PASSWORD)
-            ):
+                or (
+                    submitted_password is not None
+                    and submitted_password != current_data.get(CONF_PASSWORD)
+                )
+            )
+            effective_password = submitted_password or current_data.get(
+                CONF_PASSWORD
+            )
+
+            if credentials_changed:
                 try:
-                    await validate_input(self.hass, user_input)
+                    await validate_input(
+                        self.hass,
+                        {
+                            CONF_USERNAME: new_username,
+                            CONF_PASSWORD: effective_password,
+                        },
+                    )
                 except CannotConnect:
                     errors["base"] = ERROR_CANNOT_CONNECT
                 except InvalidAuth:
@@ -190,10 +211,19 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         errors=errors,
                     )
 
-            # Update the config entry data
+            # Credentials are core connection data; scan_interval is an
+            # option and belongs in entry.options, not entry.data.
             self.hass.config_entries.async_update_entry(
                 self._config_entry,
-                data=user_input,
+                data={
+                    CONF_USERNAME: new_username,
+                    CONF_PASSWORD: effective_password,
+                },
+                options={
+                    CONF_SCAN_INTERVAL: user_input.get(
+                        CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                    )
+                },
             )
             await self.hass.config_entries.async_reload(self._config_entry.entry_id)
             return self.async_create_entry(title="", data={})
@@ -206,19 +236,23 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     def _get_options_schema(self) -> vol.Schema:
         """Build the options schema with current values as defaults."""
         current_data = self._config_entry.data
+        current_options = self._config_entry.options
         return vol.Schema(
             {
                 vol.Required(
                     CONF_USERNAME,
                     default=current_data.get(CONF_USERNAME, ""),
                 ): str,
-                vol.Required(
-                    CONF_PASSWORD,
-                    default=current_data.get(CONF_PASSWORD, ""),
-                ): str,
+                # Never pre-fill the stored password back into the form;
+                # leave it blank and only overwrite when a new value is
+                # supplied.
+                vol.Optional(CONF_PASSWORD, default=""): str,
                 vol.Optional(
                     CONF_SCAN_INTERVAL,
-                    default=current_data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                    default=current_options.get(
+                        CONF_SCAN_INTERVAL,
+                        current_data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                    ),
                 ): vol.All(
                     vol.Coerce(int),
                     vol.Range(min=MIN_SCAN_INTERVAL, max=MAX_SCAN_INTERVAL),

@@ -170,7 +170,11 @@ async def test_step_user_creates_entry(hass):
 
     assert result["type"] == "create_entry"
     assert result["title"] == f"HBX Controls ({VALID_USER_INPUT[CONF_USERNAME]})"
-    assert result["data"] == VALID_USER_INPUT
+    assert result["data"] == {
+        CONF_USERNAME: VALID_USER_INPUT[CONF_USERNAME],
+        CONF_PASSWORD: VALID_USER_INPUT[CONF_PASSWORD],
+    }
+    assert result["options"] == {CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL}
 
 
 async def test_step_user_cannot_connect(hass):
@@ -254,9 +258,52 @@ async def test_options_flow_updates_with_same_credentials(hass):
     new_input = dict(VALID_USER_INPUT)
     new_input[CONF_SCAN_INTERVAL] = 600
 
-    result = await flow.async_step_init(user_input=new_input)
+    with patch.object(
+        hass.config_entries, "async_update_entry"
+    ) as mock_update, patch.object(
+        hass.config_entries, "async_reload", new_callable=AsyncMock
+    ):
+        result = await flow.async_step_init(user_input=new_input)
 
     assert result["type"] == "create_entry"
+    # scan_interval is an option, not core connection data.
+    _, kwargs = mock_update.call_args
+    assert kwargs["options"] == {CONF_SCAN_INTERVAL: 600}
+    assert kwargs["data"] == {
+        CONF_USERNAME: VALID_USER_INPUT[CONF_USERNAME],
+        CONF_PASSWORD: VALID_USER_INPUT[CONF_PASSWORD],
+    }
+
+
+async def test_options_flow_blank_password_keeps_existing(hass):
+    """Leaving the password field blank must not overwrite the stored one."""
+    entry = MagicMock()
+    entry.data = dict(VALID_USER_INPUT)
+    entry.options = {}
+
+    flow = OptionsFlowHandler(entry)
+    flow.hass = hass
+
+    new_input = {
+        CONF_USERNAME: VALID_USER_INPUT[CONF_USERNAME],
+        CONF_PASSWORD: "",
+        CONF_SCAN_INTERVAL: 600,
+    }
+
+    with patch(
+        "custom_components.hbx_controls.config_flow.validate_input"
+    ) as mock_validate, patch.object(
+        hass.config_entries, "async_update_entry"
+    ) as mock_update, patch.object(
+        hass.config_entries, "async_reload", new_callable=AsyncMock
+    ):
+        result = await flow.async_step_init(user_input=new_input)
+
+    assert result["type"] == "create_entry"
+    # Credentials effectively unchanged (blank password), so no re-validation.
+    mock_validate.assert_not_called()
+    _, kwargs = mock_update.call_args
+    assert kwargs["data"][CONF_PASSWORD] == VALID_USER_INPUT[CONF_PASSWORD]
 
 
 async def test_options_flow_validates_new_credentials(hass):
