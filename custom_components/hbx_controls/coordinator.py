@@ -332,7 +332,12 @@ class HBXControlsDataUpdateCoordinator(DataUpdateCoordinator):
         self.sensorlinx = Sensorlinx()
         self.entry = entry
 
-        scan_interval = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        # scan_interval moved to entry.options; fall back to entry.data for
+        # entries created before that change.
+        scan_interval = entry.options.get(
+            CONF_SCAN_INTERVAL,
+            entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+        )
         self._scan_interval = scan_interval
 
         # Optimistic write overrides: device_id -> {param_key: (value, expires)}.
