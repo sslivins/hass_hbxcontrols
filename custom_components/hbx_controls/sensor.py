@@ -30,6 +30,43 @@ from .coordinator import HBXControlsDataUpdateCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
+def _runtime_hours(raw: Any) -> float | None:
+    """Convert a SensorLinx runtime ("H:MM" or "H:MM:SS") to hours."""
+    if isinstance(raw, (int, float)):
+        return float(raw)
+    if not isinstance(raw, str):
+        return None
+    try:
+        parts = [int(p) for p in raw.strip().split(":")]
+    except ValueError:
+        return None
+    if not 1 <= len(parts) <= 3:
+        return None
+    parts += [0] * (3 - len(parts))
+    return round(parts[0] + parts[1] / 60 + parts[2] / 3600, 2)
+
+
+class _RuntimeSensorMixin:
+    """Runtime counters as a numeric duration so HA can format and graph them."""
+
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = UnitOfTime.HOURS
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_suggested_display_precision = 1
+
+    def _raw_runtime(self) -> Any:
+        raise NotImplementedError
+
+    @property
+    def native_value(self) -> float | None:
+        return _runtime_hours(self._raw_runtime())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        raw = self._raw_runtime()
+        return {"raw": raw} if raw is not None else None
+
+
 def _build_device_info(device: dict[str, Any], device_id: str) -> dict[str, Any]:
     """Build a HA device_info dict, including via_device for child THMs."""
     parameters = device.get("parameters") or {}
@@ -218,7 +255,7 @@ class HBXControlsSensor(CoordinatorEntity, SensorEntity):
         )
 
 
-class HeatPumpStageRuntimeSensor(CoordinatorEntity, SensorEntity):
+class HeatPumpStageRuntimeSensor(_RuntimeSensorMixin, CoordinatorEntity, SensorEntity):
     """Implementation of a Heat Pump Stage Runtime sensor."""
 
     def __init__(
@@ -245,9 +282,8 @@ class HeatPumpStageRuntimeSensor(CoordinatorEntity, SensorEntity):
         # Device info
         self._attr_device_info = _build_device_info(device, device_id)
 
-    @property
-    def native_value(self) -> str | None:
-        """Return the runtime of the heat pump stage."""
+    def _raw_runtime(self) -> Any:
+        """Return the raw runtime string of the heat pump stage."""
         if not self.coordinator.data or "devices" not in self.coordinator.data:
             return None
             
@@ -287,7 +323,7 @@ class HeatPumpStageRuntimeSensor(CoordinatorEntity, SensorEntity):
         return any(stage.get("title") == self._stage_title for stage in heatpump_stages)
 
 
-class BackupRuntimeSensor(CoordinatorEntity, SensorEntity):
+class BackupRuntimeSensor(_RuntimeSensorMixin, CoordinatorEntity, SensorEntity):
     """Implementation of a Backup Heater Runtime sensor."""
 
     def __init__(
@@ -312,9 +348,8 @@ class BackupRuntimeSensor(CoordinatorEntity, SensorEntity):
         # Device info
         self._attr_device_info = _build_device_info(device, device_id)
 
-    @property
-    def native_value(self) -> str | None:
-        """Return the runtime of the backup heater."""
+    def _raw_runtime(self) -> Any:
+        """Return the raw runtime string of the backup heater."""
         if not self.coordinator.data or "devices" not in self.coordinator.data:
             return None
             

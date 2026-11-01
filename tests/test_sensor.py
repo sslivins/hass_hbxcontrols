@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.const import UnitOfTemperature
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+from homeassistant.const import UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant
 
 from custom_components.hbx_controls.const import DOMAIN
@@ -15,6 +15,7 @@ from custom_components.hbx_controls.sensor import (
     BackupRuntimeSensor,
     HBXControlsSensor,
     HeatPumpStageRuntimeSensor,
+    _runtime_hours,
     async_setup_entry,
 )
 
@@ -219,15 +220,19 @@ def _make_hp_runtime(coordinator, stage_title="Stage 1", device_id=MOCK_DEVICE_I
 
 
 async def test_hp_runtime_value(hass: HomeAssistant, mock_coordinator):
-    """Test heat pump stage runtime returns the runTime string."""
+    """Test heat pump stage runtime is reported in hours."""
     entity = _make_hp_runtime(mock_coordinator, "Stage 1")
-    assert entity.native_value == "100:05:30"
+    assert entity.native_value == 100.09
+    assert entity.extra_state_attributes == {"raw": "100:05:30"}
+    assert entity.native_unit_of_measurement == UnitOfTime.HOURS
+    assert entity.device_class == SensorDeviceClass.DURATION
+    assert entity.state_class == SensorStateClass.TOTAL_INCREASING
 
 
 async def test_hp_runtime_stage2(hass: HomeAssistant, mock_coordinator):
     """Test runtime for stage 2."""
     entity = _make_hp_runtime(mock_coordinator, "Stage 2")
-    assert entity.native_value == "50:10:00"
+    assert entity.native_value == 50.17
 
 
 async def test_hp_runtime_missing_stage(hass: HomeAssistant, mock_coordinator):
@@ -286,9 +291,9 @@ def _make_backup_runtime(coordinator, backup_title="Backup", device_id=MOCK_DEVI
 
 
 async def test_backup_runtime_value(hass: HomeAssistant, mock_coordinator):
-    """Test backup runtime returns the runTime string."""
+    """Test backup runtime is reported in hours."""
     entity = _make_backup_runtime(mock_coordinator)
-    assert entity.native_value == "10:00:00"
+    assert entity.native_value == 10.0
 
 
 async def test_backup_runtime_no_backup_state(
@@ -333,3 +338,22 @@ async def test_backup_runtime_unavailable_no_backup(
     mock_coordinator.data = make_coordinator_data(devices={MOCK_DEVICE_ID: device})
     entity = _make_backup_runtime(mock_coordinator)
     assert entity.available is False
+
+
+@pytest.mark.parametrize(
+    ("raw", "hours"),
+    [
+        ("1828:60", 1829.0),
+        ("1653:23", 1653.38),
+        ("100:05:30", 100.09),
+        ("7", 7.0),
+        (12.5, 12.5),
+        ("", None),
+        ("abc", None),
+        ("1:2:3:4", None),
+        (None, None),
+    ],
+)
+def test_runtime_hours_parsing(raw, hours):
+    """SensorLinx runtimes ("H:MM" or "H:MM:SS") convert to hours."""
+    assert _runtime_hours(raw) == hours
